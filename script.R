@@ -78,8 +78,12 @@ lag_optimal <- VARselect(data[, -1], lag.max = 10, type = "both")
 lag_optimal
 
 #model
-var_model <- VAR(data[, -1], p = 10, exogen = tibble(data$forward_guidance_uvolneni, data$forward_guidance_zprisneni)) #TODO: type: Type of deterministic regressors to include.
-summary(var_model)
+var_model_prof <- VAR(data[, -c(1, 3, 4, ncol(data))], p = 10, exogen = tibble(data$forward_guidance_uvolneni, data$forward_guidance_zprisneni)) #TODO: type: Type of deterministic regressors to include.
+summary(var_model_prof)
 
 #diagnostika modelu
-adf.test(residuals(var_model))
+residua <- residuals(var_model)
+adf.test(residua) #stacionarity residui
+serial.test(var_model) #autokorelace residui
+acf(residuals)
+pacf(residuals)
