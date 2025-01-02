@@ -1,3 +1,5 @@
+rm(list = ls())
+
 library(readr)
 library(readxl)
 library(tidyverse)
