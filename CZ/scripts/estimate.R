@@ -6,11 +6,12 @@ library(tidyverse)
 library(urca)
 library(vars)
 
+
 load("data/cdata.RData")
 
 ts_data <- tibble(
   "datum" = format(seq(as.Date("2005-1-01"), as.Date("2023-12-01"), "month"), "%Y-%m"),
-  "aktiva" = window(asset_ts, start = c(2005, 1), end = c(2023, 12)),
+  "aktiva" = (window(asset_ts, start = c(2005, 1), end = c(2023, 12))),
   "forward_guidance_uvolneni" = window(fg_down_ts, start = c(2005, 1), end = c(2023, 12)),
   "forward_guidance_zprisneni" = window(fg_up_ts, start = c(2005, 1), end = c(2023, 12)),
   "nezamestnanost" = window(unemp_ts, start = c(2005, 1), end = c(2023, 12)),
@@ -20,30 +21,41 @@ ts_data <- tibble(
   "oce_h" = window(ie_h_ts, start = c(2005, 1), end = c(2023, 12))
 )
 
+# TODO: presunout do plot_tabs
+ts_data1 <- ts_data %>%
+  mutate(datum = as.Date(paste0(datum, "-01")))
+
+# Transformace dat do "dlouhého" formátu pro ggplot2:
+ts_data_long <- ts_data1 %>%
+  pivot_longer(cols = -datum, names_to = "serie", values_to = "hodnota")
+
+# Varianta 1: Vykreslení všech řad na jednom grafu.
+ggplot(ts_data_long, aes(x = datum, y = hodnota, color = serie)) +
+  geom_line() +
+  labs(title = "Časové řady", x = "Datum", y = "Hodnota") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Varianta 2: Vykreslení řad pomocí facet_wrap (každá řada v samostatném panelu).
+ggplot(ts_data_long, aes(x = datum, y = hodnota)) +
+  geom_line(color = "steelblue") +
+  facet_wrap(~ serie, scales = "free_y") +
+  labs(title = "Časové řady (facety)", x = "Datum", y = "Hodnota") +
+  theme_minimal()
+
 
 # předpoklady
-
-# # stacionarni
-# adf.test(data$forward_guidance_uvolneni)
-# adf.test(data$inflace)
-# # nestacionarni
-# adf.test(data$oce_h)
-# adf.test(data$oce_p)
-# adf.test(data$forward_guidance_zprisneni)
-# adf.test(data$urok)
-# adf.test(data$aktiva)
-# adf.test(data$nezamestnanost)
-
+# TODO: dodělat i klasické předpoklady pro rezidua
 
 # NOTE: Funkce na stacionaritu a kointegraci z manahra_pred
-# Stacionarita a tabulka p hodnot testu a doporucenych diferenci
+# Stacionarita a tabulka p hodnot testu a pocet diferenci k dosahnuti stacionarity
 check_stationarity_summary <- function(data) {
   results <- tibble(
     Variable = character(),
     KPSS_p_value = numeric(),
     ADF_p_value = numeric(),
     PP_p_value = numeric(),
-    Recommended_Diffs = integer(),
+    Integration_Order = integer(),
   )
 
   for (var in names(data)) {
@@ -51,33 +63,32 @@ check_stationarity_summary <- function(data) {
     kpss_test <- kpss.test(var_data, null = "Level")
     adf_test <- adf.test(var_data, alternative = "stationary")
     pp_test <- pp.test(var_data, alternative = "stationary")
-    ndiffs_val <- ndiffs(var_data)
+    ndiffs_val <- ndiffs(var_data, max.d = 10, alpha = 0.05, type = "level")
 
     results <- rbind(results, tibble(
       Variable = var,
       KPSS_p_value = kpss_test$p.value,
       ADF_p_value = adf_test$p.value,
       PP_p_value = pp_test$p.value,
-      Recommended_Diffs = ndiffs_val,
+      Integration_Order = ndiffs_val,
     ))
   }
 
   return(results)
 }
 
-variables <- ts_data[, c("aktiva", "forward_guidance_uvolneni", "forward_guidance_zprisneni", "oce_h", "oce_p", "inflace", "urok", "nezamestnanost")]
+variables <- drop_na(ts_data[, c("aktiva", "forward_guidance_uvolneni", "forward_guidance_zprisneni", "oce_h", "oce_p", "inflace", "urok", "nezamestnanost")])
 check_stationarity_summary(variables)
 
-# Engle-Granger cointegration test
+ts_data <- ts_data |>
+  mutate(
+    aktiva = log(aktiva),
 
-# Fit the regression model
-coint_model <- lm(aktiva ~ forward_guidance_uvolneni + forward_guidance_zprisneni + oce_h + oce_p + inflace + urok + nezamestnanost, data = ts_data)
+)
 
-# Get the residuals
-coint_residuals <- residuals(coint_model)
 
-# Perform the ADF test on residuals
-adf.test(coint_residuals, alternative = "stationary")
+
+# Johansen cointegration test
 
 
 
