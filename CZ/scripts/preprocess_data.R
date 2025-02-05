@@ -47,6 +47,19 @@ ir_ts <- ts(ir[[2]][nrow(ir):1], start = c(1995, 12), frequency = 12) # nolint: 
 unemp_ts <- ts(unlist(unemp[unemp[[1]] == "Celkem ČR", ][-1]), start = c(2005, 1), frequency = 12)
 
 
+tibble_data <- tibble(
+  "datum" = format(seq(as.Date("2005-1-01"), as.Date("2023-12-01"), "month"), "%Y-%m"),
+  "aktiva" = (window(asset_ts, start = c(2005, 1), end = c(2023, 12))),
+  "forward_guidance_uvolneni" = window(fg_down_ts, start = c(2005, 1), end = c(2023, 12)),
+  "forward_guidance_zprisneni" = window(fg_up_ts, start = c(2005, 1), end = c(2023, 12)),
+  "nezamestnanost" = window(unemp_ts, start = c(2005, 1), end = c(2023, 12)),
+  "urok" = window(ir_ts, start = c(2005, 1), end = c(2023, 12)),
+  "inflace" = window(cpi_ts, start = c(2005, 1), end = c(2023, 12)),
+  "oce_p" = window(ie_p_ts, start = c(2005, 1), end = c(2023, 12)),
+  "oce_h" = window(ie_h_ts, start = c(2005, 1), end = c(2023, 12))
+)
+
+
 save(
   cpi_ts,
   asset_ts,
@@ -56,5 +69,10 @@ save(
   ie_h_ts,
   ir_ts,
   unemp_ts,
-  file = "data/cdata.RData"
+  file = "data/ts_data.RData"
+)
+
+save(
+  tibble_data,
+  file = "data/tibble_data.RData"
 )

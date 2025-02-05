@@ -7,41 +7,7 @@ library(urca)
 library(vars)
 
 
-load("data/cdata.RData")
-
-ts_data <- tibble(
-  "datum" = format(seq(as.Date("2005-1-01"), as.Date("2023-12-01"), "month"), "%Y-%m"),
-  "aktiva" = (window(asset_ts, start = c(2005, 1), end = c(2023, 12))),
-  "forward_guidance_uvolneni" = window(fg_down_ts, start = c(2005, 1), end = c(2023, 12)),
-  "forward_guidance_zprisneni" = window(fg_up_ts, start = c(2005, 1), end = c(2023, 12)),
-  "nezamestnanost" = window(unemp_ts, start = c(2005, 1), end = c(2023, 12)),
-  "urok" = window(ir_ts, start = c(2005, 1), end = c(2023, 12)),
-  "inflace" = window(cpi_ts, start = c(2005, 1), end = c(2023, 12)),
-  "oce_p" = window(ie_p_ts, start = c(2005, 1), end = c(2023, 12)),
-  "oce_h" = window(ie_h_ts, start = c(2005, 1), end = c(2023, 12))
-)
-
-# TODO: presunout do plot_tabs
-ts_data1 <- ts_data %>%
-  mutate(datum = as.Date(paste0(datum, "-01")))
-
-# Transformace dat do "dlouhého" formátu pro ggplot2:
-ts_data_long <- ts_data1 %>%
-  pivot_longer(cols = -datum, names_to = "serie", values_to = "hodnota")
-
-# Varianta 1: Vykreslení všech řad na jednom grafu.
-ggplot(ts_data_long, aes(x = datum, y = hodnota, color = serie)) +
-  geom_line() +
-  labs(title = "Časové řady", x = "Datum", y = "Hodnota") +
-  theme_minimal() +
-  theme(legend.position = "bottom")
-
-# Varianta 2: Vykreslení řad pomocí facet_wrap (každá řada v samostatném panelu).
-ggplot(ts_data_long, aes(x = datum, y = hodnota)) +
-  geom_line(color = "steelblue") +
-  facet_wrap(~ serie, scales = "free_y") +
-  labs(title = "Časové řady (facety)", x = "Datum", y = "Hodnota") +
-  theme_minimal()
+load("data/tibble_data.RData")
 
 
 # předpoklady
@@ -77,10 +43,10 @@ check_stationarity_summary <- function(data) {
   return(results)
 }
 
-variables <- drop_na(ts_data[, c("aktiva", "forward_guidance_uvolneni", "forward_guidance_zprisneni", "oce_h", "oce_p", "inflace", "urok", "nezamestnanost")])
+variables <- drop_na(tibble_data[, c("aktiva", "forward_guidance_uvolneni", "forward_guidance_zprisneni", "oce_h", "oce_p", "inflace", "urok", "nezamestnanost")])
 check_stationarity_summary(variables)
 
-ts_data <- ts_data |>
+tibble_data <- tibble_data |>
   mutate(
     aktiva = log(aktiva),
 
@@ -98,11 +64,11 @@ ts_data <- ts_data |>
 
 
 # vyber zpozdeni
-lag_optimal <- VARselect(ts_data[, -1], lag.max = 10, type = "both")
+lag_optimal <- VARselect(tibble_data[, -1], lag.max = 10, type = "both")
 lag_optimal
 
 # model
-var_model_prof <- VAR(ts_data[, -c(1, 3, 4, ncol(ts_data))], p = 10, exogen = tibble(ts_data$forward_guidance_uvolneni, ts_data$forward_guidance_zprisneni)) # TODO: type: Type of deterministic regressors to include.
+var_model_prof <- VAR(tibble_data[, -c(1, 3, 4, ncol(tibble_data))], p = 10, exogen = tibble(tibble_data$forward_guidance_uvolneni, tibble_data$forward_guidance_zprisneni)) # TODO: type: Type of deterministic regressors to include.
 summary(var_model_prof)
 
 # diagnostika modelu
