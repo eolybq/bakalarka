@@ -25,6 +25,7 @@ ts_objects <- list(
   unemp_ts = unemp_ts
 )
 
+# HACK: mozna predelat jen na autoplot neb tak asi zbytecny
 ts_to_df <- function(ts_obj) {
   start_year <- start(ts_obj)[1]
   start_period <- start(ts_obj)[2]
@@ -58,17 +59,14 @@ for (ts_name in names(ts_objects)) {
 acf_pacf <- function(data, maxlag) {
   if (class(data) %in% c("numeric", "ts")) {
 
-
     acf(as.numeric(data), lag.max = maxlag, main = paste("ACF for", deparse(substitute(data))))
     pacf(as.numeric(data), lag.max = maxlag, main = paste("PACF for", deparse(substitute(data))))
-
   } else if (class(data) %in% c("tibble", "data.frame")) {
     imap(data, function(x, y) {
       # par(mfrow = c(1, 2))
 
       acf(as.numeric(x), lag.max = maxlag, main = paste("ACF for", y))
       pacf(as.numeric(x), lag.max = maxlag, main = paste("PACF for", y))
-
     })
   }
 }
