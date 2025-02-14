@@ -151,8 +151,8 @@ summary(var_model_domac)
 # diagnostika modelu
 residuals <- residuals(var_model_domac)
 
-serial.test(var_model_domac)
-arch.test(var_model_domac)
+serial.test(var_model_domac) # Autokorelace
+arch.test(var_model_domac) # Heteroskedasticita
 normality.test(var_model_domac)
 
 # KPSS test
