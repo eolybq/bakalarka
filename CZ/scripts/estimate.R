@@ -87,7 +87,7 @@ acf_pacf(tibble_data, 40)
 trans_tdata <- tibble_data |>
     mutate(
         aktiva = final(seas(aktiva)),
-        aktiva_scaled = final(seas(aktiva_scaled)),
+        aktiva_scl = final(seas(aktiva_scl)),
         nezam = final(seas(nezam)),
         # urok = final(seas(urok)), # NOTE: nefunguje ale asi stejne ocisteno takze idk
         inflace = final(seas(inflace)),
@@ -96,7 +96,7 @@ trans_tdata <- tibble_data |>
     ) |>
     mutate(
         aktiva = c(NA, diff(log(aktiva) * 100, lag = 1)),
-        aktiva_scaled = c(NA, diff(aktiva_scaled, lag = 1)),
+        aktiva_scl = c(NA, diff(aktiva_scl, lag = 1)),
         nezam = c(NA, diff(nezam, lag = 1)),
         urok = c(NA, diff(urok, lag = 1)),
         inflace = c(NA, diff(log(inflace) * 100, lag = 1)),
@@ -109,7 +109,7 @@ trans_tdata <- tibble_data |>
     ) |>
     drop_na()
 
-variables <- trans_tdata
+variables <- trans_tdata[, -1]
 check_stationarity(variables)
 
 # Graf všech proměnných v jednom grafu
@@ -173,7 +173,7 @@ var_model_h <- trans_tdata_h |>
 
 # NOTE: restrikce: FG se objevuje pouze v rovnici pro exp
 res_matrix_h <- rbind(
-    # eq akriva_scaled
+    # eq akriva_scl
     c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0),
     # eq nezam
     c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0),
@@ -199,11 +199,11 @@ summary(var_model_h)
 
 
 # diagnostika modelu
-residuals <- residuals(var_model_h)
+residuals <- residuals(res_var_model_h)
 
-serial.test(var_model_h) # Autokorelace
-arch.test(var_model_h) # Heteroskedasticita
-normality.test(var_model_h)
+serial.test(res_var_model_h) # Autokorelace
+arch.test(res_var_model_h) # Heteroskedasticita
+normality.test(res_var_model_h)
 
 # KPSS test
 kpss_results <- apply(residuals, 2, kpss.test)
@@ -220,33 +220,58 @@ print(pp_results)
 # IRF
 # FIX: impulse musi byt endogenni??
 
-# CUSTOM IRF pro exogenni FG
-A <- Bcoef(var_model_h)  # Koeficienty VAR
-B_exog <- coef(var_model_h)$oce_h["fg_u", ]  # Dopad exogenní proměnné na Y1
-C_exog <- coef(var_model_h)$oce_h["fg_z", ]  # Dopad exogenní proměnné na Y2
-
+# CUSTOM IRF pro exogenni FG na oce_h
+var_count <- 5
+max_var_lag <- 3
 horizon <- 20
-irf_exog_Y1 <- numeric(horizon)
-irf_exog_Y2 <- numeric(horizon)
+
+all_coef <- coef(res_var_model_h)
+B_exog <- coef(res_var_model_h)$oce_h["fg_u", ] # Dopad exogenní proměnné na Y1
+C_exog <- coef(res_var_model_h)$oce_h["fg_z", ] # Dopad exogenní proměnné na Y2
+
+irf_exog_fg_u <- tibble(
+    "aktiva_scl" = 0,
+    "nezam" = 0,
+    "urok" = 0,
+    "inflace" = 0,
+    "oce_h" = 0,
+    .rows = horizon + max_var_lag
+)
 
 # Počáteční šok v první periodě (o 1 jednotku)
-irf_exog_Y1[1] <- B_exog
-irf_exog_Y2[1] <- C_exog
+irf_exog_fg_u[max_var_lag + 1, 5] <- B_exog[["Estimate"]]
 
 # Simulace dopadu šoku v dalších periodách
-for (t in 2:horizon) {
-  irf_exog_Y1[t] <- sum(A[1, 1:2] * c(irf_exog_Y1[t-1], irf_exog_Y1[max(t-2, 1)]))
-  irf_exog_Y2[t] <- sum(A[2, 1:2] * c(irf_exog_Y2[t-1], irf_exog_Y2[max(t-2, 1)]))
+for (t in max_var_lag + 2:horizon + max_var_lag) {
+    for (k in 1:var_count) {
+        irf_exog_fg_u[t, k] <- all_coef[[k]][, 1][1] * irf_exog_fg_u[t - 1, 1] +
+            all_coef[[k]][, 1][2] * irf_exog_fg_u[t - 1, 2] +
+            all_coef[[k]][, 1][3] * irf_exog_fg_u[t - 1, 3] +
+            all_coef[[k]][, 1][4] * irf_exog_fg_u[t - 1, 4] +
+            all_coef[[k]][, 1][5] * irf_exog_fg_u[t - 1, 5] +
+            all_coef[[k]][, 1][6] * irf_exog_fg_u[t - 2, 1] +
+            all_coef[[k]][, 1][7] * irf_exog_fg_u[t - 2, 2] +
+            all_coef[[k]][, 1][8] * irf_exog_fg_u[t - 2, 3] +
+            all_coef[[k]][, 1][9] * irf_exog_fg_u[t - 2, 4] +
+            all_coef[[k]][, 1][10] * irf_exog_fg_u[t - 2, 5] +
+            all_coef[[k]][, 1][11] * irf_exog_fg_u[t - 3, 1] +
+            all_coef[[k]][, 1][12] * irf_exog_fg_u[t - 3, 2] +
+            all_coef[[k]][, 1][13] * irf_exog_fg_u[t - 3, 3] +
+            all_coef[[k]][, 1][14] * irf_exog_fg_u[t - 3, 4] +
+            all_coef[[k]][, 1][15] * irf_exog_fg_u[t - 3, 5]
+    }
 }
 
 # Plot IRF
-plot(1:horizon, irf_exog_Y1, type = "o", col = "blue", main = "IRF Exogenní proměnná na Y1",
-     xlab = "Čas", ylab = "Odezva", pch = 16)
-abline(h = 0, lty = 2, col = "red")
-
-plot(1:horizon, irf_exog_Y2, type = "o", col = "green", main = "IRF Exogenní proměnná na Y2",
-     xlab = "Čas", ylab = "Odezva", pch = 16)
-abline(h = 0, lty = 2, col = "red")
+irf_exog_fg_u$time <- 1:horizon
+irf_exog_fg_u %>%
+  pivot_longer(cols = -time, names_to = "Variable", values_to = "Response") %>%
+  ggplot(aes(x = time, y = Response, color = Variable)) +
+  geom_line(size = 1.2) +
+  theme_minimal() +
+  labs(title = "Impulzní odezva na šok v exogenní proměnné (restrikovaný VAR)",
+       x = "Časový horizont",
+       y = "Odezva")
 
 
 
@@ -254,7 +279,7 @@ oce_h_akt_irf <- irf(
     var_model_h,
 
     # NOTE: swap za aktiva kdyztak
-    impulse = "aktiva_scaled",
+    impulse = "aktiva_scl",
     response = "oce_h",
     n.ahead = 20,
     ortho = FALSE,
@@ -266,7 +291,7 @@ plot(oce_h_akt_irf)
 
 # Granger causality
 # NOTE: swap za aktiva kdyztak
-causality(var_model_h, cause = "aktiva_scaled")
+causality(var_model_h, cause = "aktiva_scl")
 
 # FIX: zase hazi chybu asi - exogenni
 # causality(var_model_h, cause = "fg_z")
@@ -325,7 +350,7 @@ var_model_p <- trans_tdata_h |>
 
 # NOTE: restrikce: FG se objevuje pouze v rovnici pro exp
 res_matrix_p <- rbind(
-    # eq akriva_scaled
+    # eq akriva_scl
     c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0),
     # eq nezam
     c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0),
@@ -378,7 +403,7 @@ oce_p_akt_irf <- irf(
     var_model_p,
 
     # NOTE: swap za aktiva kdyztak
-    impulse = "aktiva_scaled",
+    impulse = "aktiva_scl",
     response = "oce_p",
     n.ahead = 20,
     ortho = FALSE,
@@ -390,7 +415,7 @@ plot(oce_p_akt_irf)
 
 # Granger causality
 # NOTE: swap za aktiva kdyztak
-causality(var_model_p, cause = "aktiva_scaled")
+causality(var_model_p, cause = "aktiva_scl")
 
 # FIX: zase hazi chybu asi - exogenni
 # causality(var_model_p, cause = "fg_z")
