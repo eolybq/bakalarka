@@ -104,13 +104,26 @@ trans_tdata <- tibble_data |>
         oce_h = c(NA, diff(oce_h, lag = 1)),
 
         # NOTE: Zpozdeni FG
-        fg_u_t_1 = c(forward_guidance_uvolneni[2:length(forward_guidance_uvolneni)], NA),
-        fg_z_t_1 = c(forward_guidance_zprisneni[2:length(forward_guidance_zprisneni)], NA)
+        forward_guidance_uvolneni = c(forward_guidance_uvolneni[2:length(forward_guidance_uvolneni)], NA),
+        forward_guidance_zprisneni = c(forward_guidance_zprisneni[2:length(forward_guidance_zprisneni)], NA)
     ) |>
-    drop_na()
+    rename(
+        # FIX: Přejmenovat ostatní proměnné na nějaký rozumný jména
+        fg_u_t_1 = forward_guidance_uvolneni,
+        fg_z_t_1 = forward_guidance_zprisneni
+    ) |>
+    drop_na() |>
+    # Omezení na před Covid inflace
+    filter(datum < "2022-01")
 
-variables <- trans_tdata[, -1]
+variables <- trans_tdata |>
+    dplyr::select(
+        -datum,
+        -fg_z_t_1,
+        -fg_u_t_1
+    )
 check_stationarity(variables)
+acf_pacf(tibble_data, 40)
 
 # Graf všech proměnných v jednom grafu
 trans_tdata |>
@@ -130,8 +143,6 @@ trans_tdata |>
 
 # DOMACNOSTI ==============
 trans_tdata_h <- trans_tdata |>
-    # Omezení na před Covid inflace
-    filter(datum < "2022-01") |>
     dplyr::select(
         -datum,
         -oce_p,
@@ -223,6 +234,8 @@ print(pp_results)
 
 
 # IRF
+set.seed(42) # Pro reprodukovatelnost
+irf_runs <- 1000
 
 # CUSTOM IRF pro exogenni FG na oce_h (+ bootstrap IS)
 var_count <- 5
@@ -230,31 +243,65 @@ max_var_lag <- 1
 horizon <- 20
 
 all_coef <- coef(res_var_model_h)
-B_exog <- coef(res_var_model_h)$oce_h["fg_u", ] # Dopad exogenní proměnné na Y1
-C_exog <- coef(res_var_model_h)$oce_h["fg_z", ] # Dopad exogenní proměnné na Y2
+B_exog <- coef(res_var_model_h)$oce_h["fg_u_t_1", ] # Dopad exogenní proměnné na Y1
+# C_exog <- coef(res_var_model_h)$oce_h["fg_z", ] # Dopad exogenní proměnné na Y2
 
-irf_exog_fg_u <- tibble(
-    "aktiva_scaled" = 0,
-    "nezam" = 0,
-    "urok" = 0,
-    "inflace" = 0,
-    "oce_h" = 0,
-    .rows = horizon + max_var_lag
+# Inicializace matice pro simulace IRF
+sim_irf <- array(0, dim = c(horizon + max_var_lag, var_count, irf_runs))
+
+for (sim in 1:irf_runs) {
+
+    irf_exog_fg_u <- tibble(
+        "aktiva_scaled" = 0,
+        "nezam" = 0,
+        "urok" = 0,
+        "inflace" = 0,
+        "oce_h" = 0,
+        .rows = horizon + max_var_lag
+    )
+
+    # Počáteční šok v první periodě (o 1 jednotku)
+    irf_exog_fg_u[max_var_lag + 1, 5] <- B_exog[["Estimate"]] + rnorm(1, mean = 0, sd = B_exog[["Std. Error"]])
+
+    # Simulace dopadu šoku v dalších periodách
+    for (t in (max_var_lag + 2):(horizon + max_var_lag)) {
+        for (k in 1:var_count) {
+            irf_exog_fg_u[t, k] <- all_coef[[k]][, 1][1] * irf_exog_fg_u[t - 1, 1] +
+                all_coef[[k]][, 1][2] * irf_exog_fg_u[t - 1, 2] +
+                all_coef[[k]][, 1][3] * irf_exog_fg_u[t - 1, 3] +
+                all_coef[[k]][, 1][4] * irf_exog_fg_u[t - 1, 4] +
+                all_coef[[k]][, 1][5] * irf_exog_fg_u[t - 1, 5]
+        }
+    }
+
+    # Uložení simulace
+    sim_irf[, , sim] <- as.matrix(irf_exog_fg_u)
+}
+
+# Výpočet mediánu a intervalů spolehlivosti
+irf_median <- apply(sim_irf, c(1, 2), median)
+irf_lower <- apply(sim_irf, c(1, 2), quantile, probs = 0.05)
+irf_upper <- apply(sim_irf, c(1, 2), quantile, probs = 0.95)
+
+irf_results <- tibble(
+    time = 1:(horizon + max_var_lag),
+    oce_h = irf_median[, 5],
+    lower = irf_lower[, 5],
+    upper = irf_upper[, 5]
 )
 
-# Počáteční šok v první periodě (o 1 jednotku)
-irf_exog_fg_u[max_var_lag + 1, 5] <- B_exog[["Estimate"]]
+# Plot s intervaly spolehlivosti
+ggplot(irf_results, aes(x = time, y = oce_h)) +
+    geom_line(color = "steelblue", linewidth = 1.2) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    theme_minimal() +
+    labs(
+        title = "Impulzní odezva v oce_h na šok v fg_u (s intervaly spolehlivosti)",
+        x = "Časový horizont",
+        y = "oce_h"
+    )
 
-# Simulace dopadu šoku v dalších periodách
-for (t in (max_var_lag + 2):(horizon + max_var_lag)) {
-    for (k in 1:var_count) {
-        irf_exog_fg_u[t, k] <- all_coef[[k]][, 1][1] * irf_exog_fg_u[t - 1, 1] +
-            all_coef[[k]][, 1][2] * irf_exog_fg_u[t - 1, 2] +
-            all_coef[[k]][, 1][3] * irf_exog_fg_u[t - 1, 3] +
-            all_coef[[k]][, 1][4] * irf_exog_fg_u[t - 1, 4] +
-            all_coef[[k]][, 1][5] * irf_exog_fg_u[t - 1, 5]
-    }
-}
+
 
 # Plot všechny IRF
 irf_exog_fg_u$time <- 1:(horizon + max_var_lag)
@@ -328,7 +375,6 @@ plot(v_decomp)
 
 # PROFESIONALOVE ==============
 trans_tdata_p <- trans_tdata |>
-    filter(datum < "2022-01") |>
     dplyr::select(
         -datum,
         -oce_h,
