@@ -104,8 +104,8 @@ trans_tdata <- tibble_data |>
         oce_h = c(NA, diff(oce_h, lag = 1)),
 
         # NOTE: Zpozdeni FG
-        forward_guidance_uvolneni = c(forward_guidance_uvolneni[2:length(forward_guidance_uvolneni)], NA),
-        forward_guidance_zprisneni = c(forward_guidance_zprisneni[2:length(forward_guidance_zprisneni)], NA)
+        fg_u_t_1 = c(forward_guidance_uvolneni[2:length(forward_guidance_uvolneni)], NA),
+        fg_z_t_1 = c(forward_guidance_zprisneni[2:length(forward_guidance_zprisneni)], NA)
     ) |>
     drop_na()
 
@@ -143,15 +143,15 @@ trans_tdata_h <- trans_tdata |>
 # vyber zpozdeni
 lag_optimal <- trans_tdata_h |>
     dplyr::select(
-        -forward_guidance_uvolneni,
-        -forward_guidance_zprisneni,
+        -fg_u_t_1,
+        -fg_z_t_1,
     ) |>
     VARselect(
         lag.max = 20,
         type = "const",
         exogen = tibble(
-            fg_u = trans_tdata_h$forward_guidance_uvolneni,
-            fg_z = trans_tdata_h$forward_guidance_zprisneni
+            fg_u_t_1 = trans_tdata_h$fg_u_t_1,
+            fg_z_t_1 = trans_tdata_h$fg_z_t_1
         )
     )
 lag_optimal
@@ -159,15 +159,15 @@ lag_optimal
 # odhad
 var_model_h <- trans_tdata_h |>
     dplyr::select(
-        -forward_guidance_uvolneni,
-        -forward_guidance_zprisneni,
+        -fg_u_t_1,
+        -fg_z_t_1,
     ) |>
     vars::VAR(
         p = 1,
         type = "const",
         exogen = tibble(
-            fg_u = trans_tdata_h$forward_guidance_uvolneni,
-            fg_z = trans_tdata_h$forward_guidance_zprisneni
+            fg_u_t_1 = trans_tdata_h$fg_u_t_1,
+            fg_z_t_1 = trans_tdata_h$fg_z_t_1
         )
     )
 
@@ -202,6 +202,10 @@ summary(var_model_h)
 # diagnostika modelu
 residuals <- residuals(res_var_model_h)
 
+as_tibble(residuals) |>
+    add_column(new_col = NA, .before = 1) |>
+    acf_pacf(20)
+
 serial.test(res_var_model_h) # Autokorelace
 arch.test(res_var_model_h) # Heteroskedasticita
 normality.test(res_var_model_h)
@@ -220,7 +224,7 @@ print(pp_results)
 
 # IRF
 
-# CUSTOM IRF pro exogenni FG na oce_h
+# CUSTOM IRF pro exogenni FG na oce_h (+ bootstrap IS)
 var_count <- 5
 max_var_lag <- 1
 horizon <- 20
@@ -336,15 +340,15 @@ trans_tdata_p <- trans_tdata |>
 # vyber zpozdeni
 lag_optimal <- trans_tdata_p |>
     dplyr::select(
-        -forward_guidance_uvolneni,
-        -forward_guidance_zprisneni,
+        -fg_u_t_1,
+        -fg_z_t_1,
     ) |>
     VARselect(
         lag.max = 20,
         type = "const",
         exogen = tibble(
-            fg_u = trans_tdata_h$forward_guidance_uvolneni,
-            fg_z = trans_tdata_h$forward_guidance_zprisneni
+            fg_u_t_1 = trans_tdata_h$fg_u_t_1,
+            fg_z_t_1 = trans_tdata_h$fg_z_t_1
         )
     )
 lag_optimal
@@ -352,15 +356,15 @@ lag_optimal
 # odhad
 var_model_p <- trans_tdata_h |>
     dplyr::select(
-        -forward_guidance_uvolneni,
-        -forward_guidance_zprisneni,
+        -fg_u_t_1,
+        -fg_z_t_1,
     ) |>
     vars::VAR(
         p = 14,
         type = "const",
         exogen = tibble(
-            fg_u = trans_tdata_h$forward_guidance_uvolneni,
-            fg_z = trans_tdata_h$forward_guidance_zprisneni
+            fg_u_t_1 = trans_tdata_h$fg_u_t_1,
+            fg_z_t_1 = trans_tdata_h$fg_z_t_1
         )
     )
 
