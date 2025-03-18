@@ -71,7 +71,7 @@ trans_tdata <- tibble_data |>
         aktiva = final(seas(aktiva)),
         aktiva_scaled = final(seas(aktiva_scaled)),
         nezam = final(seas(nezam)),
-        # urok = final(seas(urok)), # NOTE: nefunguje ale asi stejne ocisteno takze idk
+        # urok = final(seas(urok)), # NOTE: nefunguje ale asi neni sezonost takze idk
         inflace = final(seas(inflace)),
         oce_p = final(seas(oce_p)),
         oce_h = final(seas(oce_h))
