@@ -35,7 +35,6 @@ fg_up <- fg_complete |>
 
 
 # spojení cpi1 a cpi2
-# FIX: mozna udelat jako cpi_t = cpi_t+1 / cpi_t
 cpi_ts <- ts(c(cpi1[[2]], cpi2[[2]]), start = c(1995, 1), frequency = 12)
 
 
