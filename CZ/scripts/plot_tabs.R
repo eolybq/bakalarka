@@ -44,7 +44,6 @@ for (ts_name in names(ts_objects)) {
 tibble_data_vliv <- tibble_data |>
     mutate(
         aktiva = c(NA, diff(log(aktiva)) * 100),
-        # inflace_monthy_change = c(NA, inflace / stats::lag(inflace) * 100)
     ) |>
     select(
         -c(inflace, nezam, urok)

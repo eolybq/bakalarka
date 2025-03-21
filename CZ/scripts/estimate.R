@@ -77,26 +77,26 @@ trans_tdata <- tibble_data |>
         oce_h = final(seas(oce_h))
     ) |>
     mutate(
-        aktiva = c(NA, diff(log(aktiva), lag = 1) * 100),
-        aktiva_scaled = c(NA, diff(aktiva_scaled, lag = 1)),
+        aktiva = c(NA, NA, diff(diff(log(aktiva), lag = 1) * 100)),
+        aktiva_scaled = c(NA, NA, diff(diff(log(aktiva_scaled), lag = 1) * 100)),
         nezam = c(NA, diff(nezam, lag = 1)),
         urok = c(NA, diff(urok, lag = 1)),
-        inflace = c(NA, diff(log(inflace), lag = 1) * 100),
+        inflace = c(NA, NA, diff(diff(log(inflace), lag = 1) * 100)),
         oce_p = c(NA, diff(oce_p, lag = 1)),
         oce_h = c(NA, diff(oce_h, lag = 1)),
 
         # NOTE: Zpozdeni FG
-        forward_guidance_uvolneni = c(forward_guidance_uvolneni[2:length(forward_guidance_uvolneni)], NA),
-        forward_guidance_zprisneni = c(forward_guidance_zprisneni[2:length(forward_guidance_zprisneni)], NA)
+        forward_guidance_uvolneni = c(NA, forward_guidance_uvolneni[2:length(forward_guidance_uvolneni)]),
+        forward_guidance_zprisneni = c(NA, forward_guidance_zprisneni[2:length(forward_guidance_zprisneni)])
     ) |>
     rename(
         # FIX: Přejmenovat ostatní proměnné na nějaký rozumný jména
         fg_u_t_1 = forward_guidance_uvolneni,
         fg_z_t_1 = forward_guidance_zprisneni
     ) |>
-    drop_na() |>
-    # Omezení na před Covid inflace
-    filter(datum < "2022-01")
+    drop_na()
+# Omezení na před Covid inflace
+# filter(datum < "2022-01")
 
 variables <- trans_tdata |>
     dplyr::select(
@@ -110,7 +110,9 @@ acf_pacf(tibble_data, 40)
 # Graf všech proměnných v jednom grafu
 trans_tdata |>
     dplyr::select(
-        -aktiva
+        -aktiva,
+        -fg_u_t_1,
+        -fg_z_t_1
     ) |>
     pivot_longer(cols = -datum) |>
     ggplot(aes(x = datum, y = value, color = name, group = name)) +
@@ -144,7 +146,7 @@ lag_optimal_h <- trans_tdata_h |>
         type = "const",
         exogen = tibble(
             fg_u_t_1 = trans_tdata_h$fg_u_t_1,
-            # fg_z_t_1 = trans_tdata_h$fg_z_t_1
+            fg_z_t_1 = trans_tdata_h$fg_z_t_1
         )
     )
 lag_optimal_h
@@ -156,11 +158,11 @@ var_model_h <- trans_tdata_h |>
         -fg_z_t_1,
     ) |>
     vars::VAR(
-        p = 1,
+        p = 4,
         type = "const",
         exogen = tibble(
             fg_u_t_1 = trans_tdata_h$fg_u_t_1,
-            # fg_z_t_1 = trans_tdata_h$fg_z_t_1
+            fg_z_t_1 = trans_tdata_h$fg_z_t_1
         )
     )
 
@@ -168,22 +170,19 @@ var_model_h <- trans_tdata_h |>
 # NOTE: restrikce: FG se objevuje pouze v rovnici pro exp
 res_matrix_h <- rbind(
     # eq aktiva_scaled
-    c(1, 1, 1, 1, 1, 1, 0),
+    c(rep(1, 21), 0, 0),
     # eq nezam
-    c(1, 1, 1, 1, 1, 1, 0),
+    c(rep(1, 21), 0, 0),
     # eq urok
-    c(1, 1, 1, 1, 1, 1, 0),
+    c(rep(1, 21), 0, 0),
     # eq inflace
-    c(1, 1, 1, 1, 1, 1, 0),
+    c(rep(1, 21), 0, 0),
     # eq oce
-    c(1, 1, 1, 1, 1, 1, 1)
+    c(rep(1, 21), 1, 1)
 )
 
 res_var_model_h <- restrict(var_model_h, method = "manual", resmat = res_matrix_h)
 
-
-# FIX: stale hazi tu stejnou chybu jak ve stack overflow
-# vcovTEST <- lapply(res_var_model_h$varresult, function(eq) vcovHAC(eq))
 
 summary(res_var_model_h)
 
@@ -212,71 +211,120 @@ print(kpss_results_h)
 print(adf_results_h)
 print(pp_results_h)
 
+# multikolinearita
+map(res_var_model_h$varresult, vif)
+
+
+# NOTE: HAC robustní odchylka pro FG promenne v rovnici oce_h hlavne pro IRF
+hac_matrix_h <- vcovHAC(res_var_model_h$varresult$oce_h)
+
+# HAC sd FG 
+hac_sd_fg_u_h <- hac_matrix_h[nrow(hac_matrix_h) - 1, ncol(hac_matrix_h) - 1]
+hac_sd_fg_z_h <- hac_matrix_h[nrow(hac_matrix_h), ncol(hac_matrix_h)]
+
 
 # IRF
-set.seed(42) # Pro reprodukovatelnost
-irf_runs <- 1000
-
 # CUSTOM IRF pro exogenni FG na oce_h (+ bootstrap IS)
-var_count <- 5
-max_var_lag <- 1
-horizon <- 20
+exogen_irf_h <- function(fg_type, fg_sd) {
+    set.seed(42) # Pro reprodukovatelnost
 
-all_coef_h <- coef(res_var_model_h)
-B_exog_h <- coef(res_var_model_h)$oce_h["fg_u_t_1", ] # Dopad exogenní proměnné na Y1
-# C_exog_p <- coef(res_var_model_h)$oce_h["fg_z", ] # Dopad exogenní proměnné na Y2
+    irf_runs <- 1000
 
-# Inicializace matice pro simulace IRF
-sim_irf_h <- array(0, dim = c(horizon + max_var_lag, var_count, irf_runs))
+    var_count <- 5
+    max_var_lag <- 4
+    horizon <- 20
 
-for (sim in 1:irf_runs) {
+    all_coef_h <- coef(res_var_model_h)
 
-    irf_exog_fg_u <- tibble(
-        "aktiva_scaled" = 0,
-        "nezam" = 0,
-        "urok" = 0,
-        "inflace" = 0,
-        "oce_h" = 0,
-        .rows = horizon + max_var_lag
-    )
 
-    # Počáteční šok v první periodě (o 1 jednotku)
-    irf_exog_fg_u[max_var_lag + 1, 5] <- B_exog_h[["Estimate"]] + rnorm(1, mean = 0, sd = B_exog_h[["Std. Error"]])
+    # Inicializace matice pro simulace IRF
+    sim_irf_h <- array(0, dim = c(horizon + max_var_lag, var_count, irf_runs))
 
-    # Simulace dopadu šoku v dalších periodách
-    for (t in (max_var_lag + 2):(horizon + max_var_lag)) {
-        for (k in 1:var_count) {
-            irf_exog_fg_u[t, k] <- all_coef_h[[k]][, 1][1] * irf_exog_fg_u[t - 1, 1] +
-                all_coef_h[[k]][, 1][2] * irf_exog_fg_u[t - 1, 2] +
-                all_coef_h[[k]][, 1][3] * irf_exog_fg_u[t - 1, 3] +
-                all_coef_h[[k]][, 1][4] * irf_exog_fg_u[t - 1, 4] +
-                all_coef_h[[k]][, 1][5] * irf_exog_fg_u[t - 1, 5]
+    for (sim in 1:irf_runs) {
+        irf_exog_fg <- tibble(
+            "aktiva_scaled" = 0,
+            "nezam" = 0,
+            "urok" = 0,
+            "inflace" = 0,
+            "oce_h" = 0,
+            .rows = horizon + max_var_lag
+        )
+
+        # Počáteční šok v první periodě (o 1 jednotku)
+        irf_exog_fg[max_var_lag + 1, 5] <- fg_type[["Estimate"]] + rnorm(1, mean = 0, sd = fg_sd)
+
+        # Simulace dopadu šoku v dalších periodách
+        for (t in (max_var_lag + 2):(horizon + max_var_lag)) {
+            for (k in 1:var_count) {
+                irf_exog_fg[t, k] <- all_coef_h[[k]][, 1][1] * irf_exog_fg[t - 1, 1] +
+                    all_coef_h[[k]][, 1][2] * irf_exog_fg[t - 1, 2] +
+                    all_coef_h[[k]][, 1][3] * irf_exog_fg[t - 1, 3] +
+                    all_coef_h[[k]][, 1][4] * irf_exog_fg[t - 1, 4] +
+                    all_coef_h[[k]][, 1][5] * irf_exog_fg[t - 1, 5]
+
+                all_coef_h[[k]][, 1][6] * irf_exog_fg[t - 2, 2] +
+                    all_coef_h[[k]][, 1][7] * irf_exog_fg[t - 2, 2] +
+                    all_coef_h[[k]][, 1][8] * irf_exog_fg[t - 2, 3] +
+                    all_coef_h[[k]][, 1][9] * irf_exog_fg[t - 2, 4] +
+                    all_coef_h[[k]][, 1][10] * irf_exog_fg[t - 2, 5]
+
+                all_coef_h[[k]][, 1][11] * irf_exog_fg[t - 3, 2] +
+                    all_coef_h[[k]][, 1][12] * irf_exog_fg[t - 3, 2] +
+                    all_coef_h[[k]][, 1][13] * irf_exog_fg[t - 3, 3] +
+                    all_coef_h[[k]][, 1][14] * irf_exog_fg[t - 3, 4] +
+                    all_coef_h[[k]][, 1][15] * irf_exog_fg[t - 3, 5]
+
+                all_coef_h[[k]][, 1][16] * irf_exog_fg[t - 4, 2] +
+                    all_coef_h[[k]][, 1][17] * irf_exog_fg[t - 4, 2] +
+                    all_coef_h[[k]][, 1][18] * irf_exog_fg[t - 4, 3] +
+                    all_coef_h[[k]][, 1][19] * irf_exog_fg[t - 4, 4] +
+                    all_coef_h[[k]][, 1][20] * irf_exog_fg[t - 4, 5]
+            }
         }
+
+        # Uložení simulace
+        sim_irf_h[, , sim] <- as.matrix(irf_exog_fg)
     }
 
-    # Uložení simulace
-    sim_irf_h[, , sim] <- as.matrix(irf_exog_fg_u)
+    # Výpočet mediánu a intervalů spolehlivosti
+    irf_median_h <- apply(sim_irf_h, c(1, 2), median)
+    irf_lower_h <- apply(sim_irf_h, c(1, 2), quantile, probs = 0.05)
+    irf_upper_h <- apply(sim_irf_h, c(1, 2), quantile, probs = 0.95)
+
+    return(
+        tibble(
+            time = 1:(horizon + max_var_lag),
+            oce_h = irf_median_h[, 5],
+            lower = irf_lower_h[, 5],
+            upper = irf_upper_h[, 5]
+        )
+    )
 }
 
-# Výpočet mediánu a intervalů spolehlivosti
-irf_median_h <- apply(sim_irf_h, c(1, 2), median)
-irf_lower_h <- apply(sim_irf_h, c(1, 2), quantile, probs = 0.05)
-irf_upper_h <- apply(sim_irf_h, c(1, 2), quantile, probs = 0.95)
+fg_u_coef_h <- coef(res_var_model_h)$oce_h["fg_u_t_1", ] # Dopad exogenní proměnné fg u
+fg_z_coef_h <- coef(res_var_model_h)$oce_h["fg_z_t_1", ] # Dopad exogenní proměnné fg z
 
-fg_u_oce_h_irf_results <- tibble(
-    time = 1:(horizon + max_var_lag),
-    oce_h = irf_median_h[, 5],
-    lower = irf_lower_h[, 5],
-    upper = irf_upper_h[, 5]
-)
+fg_u_oce_h_irf_results <- exogen_irf_h(fg_u_coef_h, hac_sd_fg_u_h)
+fg_z_oce_h_irf_results <- exogen_irf_h(fg_z_coef_h, hac_sd_fg_z_h)
+
 
 # Plot s intervaly spolehlivosti
-ggplot(fg_u_oce_h_irf_results, aes(x = time, y = oce_h)) +
+ggplot(fg_u_oce_h_irf_results[4:nrow(fg_u_oce_h_irf_results), ], aes(x = time, y = oce_h)) +
     geom_line(color = "steelblue", linewidth = 1.2) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
     theme_minimal() +
     labs(
-        title = "Impulzní odezva v oce_h na šok v fg_u (s intervaly spolehlivosti)",
+        title = "Impulzní odezva v oce_h na jednotkový šok v uvolnění FG (s intervaly spolehlivosti)",
+        x = "Časový horizont",
+        y = "oce_h"
+    )
+
+ggplot(fg_z_oce_h_irf_results[4:nrow(fg_z_oce_h_irf_results), ], aes(x = time, y = oce_h)) +
+    geom_line(color = "steelblue", linewidth = 1.2) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    theme_minimal() +
+    labs(
+        title = "Impulzní odezva v oce_h na jednotkový šok v zpřísnění FG (s intervaly spolehlivosti)",
         x = "Časový horizont",
         y = "oce_h"
     )
@@ -292,7 +340,7 @@ akt_oce_h_irf <- irf(
     response = "oce_h",
     n.ahead = 20,
     ortho = FALSE,
-    runs = 100
+    runs = 1000
 )
 
 plot(akt_oce_h_irf)
@@ -336,7 +384,7 @@ lag_optimal_p <- trans_tdata_p |>
         type = "const",
         exogen = tibble(
             fg_u_t_1 = trans_tdata_p$fg_u_t_1,
-            # fg_z_t_1 = trans_tdata_p$fg_z_t_1
+            fg_z_t_1 = trans_tdata_p$fg_z_t_1
         )
     )
 lag_optimal_p
@@ -352,7 +400,7 @@ var_model_p <- trans_tdata_p |>
         type = "const",
         exogen = tibble(
             fg_u_t_1 = trans_tdata_p$fg_u_t_1,
-            # fg_z_t_1 = trans_tdata_p$fg_z_t_1
+            fg_z_t_1 = trans_tdata_p$fg_z_t_1
         )
     )
 
@@ -360,22 +408,19 @@ var_model_p <- trans_tdata_p |>
 # NOTE: restrikce: FG se objevuje pouze v rovnici pro exp
 res_matrix_p <- rbind(
     # eq aktiva_scaled
-    c(1, 1, 1, 1, 1, 1, 0),
+    c(rep(1, 6), 0, 0),
     # eq nezam
-    c(1, 1, 1, 1, 1, 1, 0),
+    c(rep(1, 6), 0, 0),
     # eq urok
-    c(1, 1, 1, 1, 1, 1, 0),
+    c(rep(1, 6), 0, 0),
     # eq inflace
-    c(1, 1, 1, 1, 1, 1, 0),
+    c(rep(1, 6), 0, 0),
     # eq oce
-    c(1, 1, 1, 1, 1, 1, 1)
+    c(rep(1, 6), 1, 1)
 )
 
 res_var_model_p <- restrict(var_model_p, method = "manual", resmat = res_matrix_p)
 
-
-# FIX: stale hazi tu stejnou chybu jak ve stack overflow
-# vcovTEST <- lapply(res_var_model_p$varresult, function(eq) vcovHAC(eq))
 
 summary(res_var_model_p)
 
@@ -404,62 +449,84 @@ print(kpss_results_p)
 print(adf_results_p)
 print(pp_results_p)
 
+# multikolinearita
+map(res_var_model_h$varresult, vif)
+
+
+# NOTE: HAC robustní odchylka pro FG promenne v rovnici oce_p hlavne pro IRF
+hac_matrix_p <- vcovHAC(res_var_model_p$varresult$oce_p)
+
+# HAC sd FG 
+hac_sd_fg_u_p <- hac_matrix_p[nrow(hac_matrix_p) - 1, ncol(hac_matrix_p) - 1]
+hac_sd_fg_z_p <- hac_matrix_p[nrow(hac_matrix_p), ncol(hac_matrix_p)]
+
 
 # IRF
-irf_runs <- 1000
+exogen_irf_p <- function(fg_type, fg_sd) {
+    # CUSTOM IRF pro exogenni FG na oce_h (+ bootstrap IS)
+    set.seed(42) # Pro reprodukovatelnost
 
-# CUSTOM IRF pro exogenni FG na oce_h (+ bootstrap IS)
-var_count <- 5
-max_var_lag <- 1
-horizon <- 20
+    irf_runs <- 1000
 
-all_coef_p <- coef(res_var_model_p)
-B_exog_p <- coef(res_var_model_p)$oce_p["fg_u_t_1", ] # Dopad exogenní proměnné na Y1
-# C_exog_p <- coef(res_var_model_p)$oce_h["fg_z", ] # Dopad exogenní proměnné na Y2
+    var_count <- 5
+    max_var_lag <- 1
+    horizon <- 20
 
-# Inicializace matice pro simulace IRF
-sim_irf_p <- array(0, dim = c(horizon + max_var_lag, var_count, irf_runs))
+    all_coef_p <- coef(res_var_model_p)
 
-for (sim in 1:irf_runs) {
+    # Inicializace matice pro simulace IRF
+    sim_irf_p <- array(0, dim = c(horizon + max_var_lag, var_count, irf_runs))
 
-    irf_exog_fg_u <- tibble(
-        "aktiva_scaled" = 0,
-        "nezam" = 0,
-        "urok" = 0,
-        "inflace" = 0,
-        "oce_h" = 0,
-        .rows = horizon + max_var_lag
-    )
+    for (sim in 1:irf_runs) {
+        irf_exog_fg <- tibble(
+            "aktiva_scaled" = 0,
+            "nezam" = 0,
+            "urok" = 0,
+            "inflace" = 0,
+            "oce_h" = 0,
+            .rows = horizon + max_var_lag
+        )
 
-    # Počáteční šok v první periodě (o 1 jednotku)
-    irf_exog_fg_u[max_var_lag + 1, 5] <- B_exog_p[["Estimate"]] + rnorm(1, mean = 0, sd = B_exog_p[["Std. Error"]])
+        # Počáteční šok v první periodě (o 1 jednotku)
+        irf_exog_fg[max_var_lag + 1, 5] <- fg_type[["Estimate"]] + rnorm(1, mean = 0, sd = fg_sd)
 
-    # Simulace dopadu šoku v dalších periodách
-    for (t in (max_var_lag + 2):(horizon + max_var_lag)) {
-        for (k in 1:var_count) {
-            irf_exog_fg_u[t, k] <- all_coef_p[[k]][, 1][1] * irf_exog_fg_u[t - 1, 1] +
-                all_coef_p[[k]][, 1][2] * irf_exog_fg_u[t - 1, 2] +
-                all_coef_p[[k]][, 1][3] * irf_exog_fg_u[t - 1, 3] +
-                all_coef_p[[k]][, 1][4] * irf_exog_fg_u[t - 1, 4] +
-                all_coef_p[[k]][, 1][5] * irf_exog_fg_u[t - 1, 5]
+        # Simulace dopadu šoku v dalších periodách
+        for (t in (max_var_lag + 2):(horizon + max_var_lag)) {
+            for (k in 1:var_count) {
+                irf_exog_fg[t, k] <- all_coef_p[[k]][, 1][1] * irf_exog_fg[t - 1, 1] +
+                    all_coef_p[[k]][, 1][2] * irf_exog_fg[t - 1, 2] +
+                    all_coef_p[[k]][, 1][3] * irf_exog_fg[t - 1, 3] +
+                    all_coef_p[[k]][, 1][4] * irf_exog_fg[t - 1, 4] +
+                    all_coef_p[[k]][, 1][5] * irf_exog_fg[t - 1, 5]
+            }
         }
+
+        # Uložení simulace
+        sim_irf_p[, , sim] <- as.matrix(irf_exog_fg)
     }
 
-    # Uložení simulace
-    sim_irf_p[, , sim] <- as.matrix(irf_exog_fg_u)
+
+    # Výpočet mediánu a intervalů spolehlivosti
+    irf_median_p <- apply(sim_irf_p, c(1, 2), median)
+    irf_lower_p <- apply(sim_irf_p, c(1, 2), quantile, probs = 0.05)
+    irf_upper_p <- apply(sim_irf_p, c(1, 2), quantile, probs = 0.95)
+
+    return(
+        tibble(
+            time = 1:(horizon + max_var_lag),
+            oce_p = irf_median_p[, 5],
+            lower = irf_lower_p[, 5],
+            upper = irf_upper_p[, 5]
+        )
+    )
 }
 
-# Výpočet mediánu a intervalů spolehlivosti
-irf_median_p <- apply(sim_irf_p, c(1, 2), median)
-irf_lower_p <- apply(sim_irf_p, c(1, 2), quantile, probs = 0.05)
-irf_upper_p <- apply(sim_irf_p, c(1, 2), quantile, probs = 0.95)
+fg_u_coef_p <- coef(res_var_model_p)$oce_p["fg_u_t_1", ] # Dopad exogenní proměnné fg u
+fg_z_coef_p <- coef(res_var_model_p)$oce_p["fg_z_t_1", ] # Dopad exogenní proměnné fg z
 
-fg_u_oce_p_irf_results <- tibble(
-    time = 1:(horizon + max_var_lag),
-    oce_p = irf_median_p[, 5],
-    lower = irf_lower_p[, 5],
-    upper = irf_upper_p[, 5]
-)
+fg_u_oce_p_irf_results <- exogen_irf_p(fg_u_coef_p, hac_sd_fg_u_p)
+fg_z_oce_p_irf_results <- exogen_irf_p(fg_z_coef_p, hac_sd_fg_z_p)
+
 
 # Plot s intervaly spolehlivosti
 ggplot(fg_u_oce_p_irf_results, aes(x = time, y = oce_p)) +
@@ -467,10 +534,22 @@ ggplot(fg_u_oce_p_irf_results, aes(x = time, y = oce_p)) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
     theme_minimal() +
     labs(
-        title = "Impulzní odezva v oce_h na šok v fg_u (s intervaly spolehlivosti)",
+        title = "Impulzní odezva v oce_p na jednotkový šok v uvolnění FG (s intervaly spolehlivosti)",
         x = "Časový horizont",
         y = "oce_p"
     )
+
+ggplot(fg_z_oce_p_irf_results, aes(x = time, y = oce_p)) +
+    geom_line(color = "steelblue", linewidth = 1.2) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    theme_minimal() +
+    labs(
+        title = "Impulzní odezva v oce_p na jednotkový šok v zpřísnění FG (s intervaly spolehlivosti)",
+        x = "Časový horizont",
+        y = "oce_p"
+    )
+
+
 
 
 
@@ -482,7 +561,7 @@ akt_oce_p_irf <- irf(
     response = "oce_p",
     n.ahead = 20,
     ortho = FALSE,
-    runs = 100
+    runs = 1000
 )
 
 plot(akt_oce_p_irf)
@@ -500,3 +579,4 @@ causality(res_var_model_p, cause = "aktiva_scaled")
 # Variancni dekompozice - jak moc je promenna ovlivnena sokem ostatnich promennych
 v_decomp_p <- fevd(res_var_model_p, n.ahead = 20)
 plot(v_decomp_p)
+
