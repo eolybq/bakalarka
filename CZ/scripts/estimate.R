@@ -288,8 +288,8 @@ exogen_irf_h <- function(fg_type, fg_sd) {
 
     # Výpočet mediánu a intervalů spolehlivosti
     irf_median_h <- apply(sim_irf_h, c(1, 2), median)
-    irf_lower_h <- apply(sim_irf_h, c(1, 2), quantile, probs = 0.05)
-    irf_upper_h <- apply(sim_irf_h, c(1, 2), quantile, probs = 0.95)
+    irf_lower_h <- apply(sim_irf_h, c(1, 2), quantile, probs = 0.025)
+    irf_upper_h <- apply(sim_irf_h, c(1, 2), quantile, probs = 0.975)
 
     return(
         tibble(
@@ -508,8 +508,8 @@ exogen_irf_p <- function(fg_type, fg_sd) {
 
     # Výpočet mediánu a intervalů spolehlivosti
     irf_median_p <- apply(sim_irf_p, c(1, 2), median)
-    irf_lower_p <- apply(sim_irf_p, c(1, 2), quantile, probs = 0.05)
-    irf_upper_p <- apply(sim_irf_p, c(1, 2), quantile, probs = 0.95)
+    irf_lower_p <- apply(sim_irf_p, c(1, 2), quantile, probs = 0.025)
+    irf_upper_p <- apply(sim_irf_p, c(1, 2), quantile, probs = 0.975)
 
     return(
         tibble(
