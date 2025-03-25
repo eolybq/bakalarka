@@ -44,7 +44,13 @@ check_stationarity <- function(data) {
     return(results)
 }
 
-variables <- drop_na(tibble_data[, -1])
+variables <- tibble_data |>
+    dplyr::select(
+        -datum,
+        -forward_guidance_uvolneni,
+        -forward_guidance_zprisneni,
+    ) |>
+    drop_na()
 check_stationarity(variables)
 
 
