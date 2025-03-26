@@ -1,6 +1,7 @@
 rm(list = ls())
 
 library(tseries)
+library(car)
 library(forecast)
 library(tidyverse)
 library(urca)
@@ -77,19 +78,21 @@ trans_tdata <- tibble_data |>
         aktiva = final(seas(aktiva)),
         aktiva_scaled = final(seas(aktiva_scaled)),
         nezam = final(seas(nezam)),
+        ipp = final(seas(ipp)),
         # urok = final(seas(urok)), # NOTE: nefunguje ale asi neni sezonost takze idk
         inflace = final(seas(inflace)),
         oce_p = final(seas(oce_p)),
         oce_h = final(seas(oce_h))
     ) |>
     mutate(
-        aktiva = c(NA, NA, diff(diff(log(aktiva), lag = 1) * 100)),
-        aktiva_scaled = c(NA, NA, diff(diff(log(aktiva_scaled), lag = 1) * 100)),
-        nezam = c(NA, diff(nezam, lag = 1)),
-        urok = c(NA, diff(urok, lag = 1)),
-        inflace = c(NA, NA, diff(diff(log(inflace), lag = 1) * 100)),
-        oce_p = c(NA, diff(oce_p, lag = 1)),
-        oce_h = c(NA, diff(oce_h, lag = 1)),
+        aktiva = c(NA, NA, diff(diff(log(aktiva)) * 100)),
+        aktiva_scaled = c(NA, NA, diff(diff(log(aktiva_scaled)) * 100)),
+        nezam = c(NA, diff(nezam)),
+        ipp = c(NA, NA, diff(diff(log(ipp)) * 100)),
+        urok = c(NA, diff(urok)),
+        inflace = c(NA, NA, diff(diff(log(inflace)) * 100)),
+        oce_p = c(NA, diff(oce_p)),
+        oce_h = c(NA, diff(oce_h)),
 
         # NOTE: Zpozdeni FG
         forward_guidance_uvolneni = c(NA, forward_guidance_uvolneni[2:length(forward_guidance_uvolneni)]),
@@ -137,8 +140,13 @@ trans_tdata_h <- trans_tdata |>
         -datum,
         -oce_p,
 
-        # NOTE: swap za aktiva kdyztak
-        -aktiva
+        # NOTE: swap za aktiva
+        -aktiva,
+        # -aktiva_scaled,
+        
+        # NOTE: swap za nezam
+        -nezam
+        # -ipp
     )
 
 # vyber zpozdeni
@@ -164,7 +172,7 @@ var_model_h <- trans_tdata_h |>
         -fg_z_t_1,
     ) |>
     vars::VAR(
-        p = 4,
+        p = 5,
         type = "const",
         exogen = tibble(
             fg_u_t_1 = trans_tdata_h$fg_u_t_1,
@@ -173,18 +181,22 @@ var_model_h <- trans_tdata_h |>
     )
 
 
+var_count_h <- 5
+max_var_lag_h <- 5
+
+
 # NOTE: restrikce: FG se objevuje pouze v rovnici pro exp
 res_matrix_h <- rbind(
     # eq aktiva_scaled
-    c(rep(1, 21), 0, 0),
+    c(rep(1, var_count_h * max_var_lag_h + 1), 0, 0),
     # eq nezam
-    c(rep(1, 21), 0, 0),
+    c(rep(1, var_count_h * max_var_lag_h + 1), 0, 0),
     # eq urok
-    c(rep(1, 21), 0, 0),
+    c(rep(1, var_count_h * max_var_lag_h + 1), 0, 0),
     # eq inflace
-    c(rep(1, 21), 0, 0),
+    c(rep(1, var_count_h * max_var_lag_h + 1), 0, 0),
     # eq oce
-    c(rep(1, 21), 1, 1)
+    c(rep(1, var_count_h * max_var_lag_h + 1), 1, 1)
 )
 
 res_var_model_h <- restrict(var_model_h, method = "manual", resmat = res_matrix_h)
@@ -218,7 +230,7 @@ print(adf_results_h)
 print(pp_results_h)
 
 # multikolinearita
-map(res_var_model_h$varresult, vif)
+map(res_var_model_h$varresult, ~vif(.))
 
 
 # NOTE: HAC robustní odchylka pro FG promenne v rovnici oce_h hlavne pro IRF
@@ -231,14 +243,12 @@ hac_sd_fg_z_h <- hac_matrix_h[nrow(hac_matrix_h), ncol(hac_matrix_h)]
 
 # IRF
 # CUSTOM IRF pro exogenni FG na oce_h (+ bootstrap IS)
-exogen_irf_h <- function(fg_type, fg_sd) {
+irf_runs <- 1000
+horizon <- 20
+    
+exogen_irf_h <- function(fg_type, fg_sd, var_count, max_var_lag) {
     set.seed(42) # Pro reprodukovatelnost
 
-    irf_runs <- 1000
-
-    var_count <- 5
-    max_var_lag <- 4
-    horizon <- 20
 
     all_coef_h <- coef(res_var_model_h)
 
@@ -274,17 +284,19 @@ exogen_irf_h <- function(fg_type, fg_sd) {
                     all_coef_h[[k]][, 1][9] * irf_exog_fg[t - 2, 4] +
                     all_coef_h[[k]][, 1][10] * irf_exog_fg[t - 2, 5]
 
-                all_coef_h[[k]][, 1][11] * irf_exog_fg[t - 3, 2] +
-                    all_coef_h[[k]][, 1][12] * irf_exog_fg[t - 3, 2] +
-                    all_coef_h[[k]][, 1][13] * irf_exog_fg[t - 3, 3] +
-                    all_coef_h[[k]][, 1][14] * irf_exog_fg[t - 3, 4] +
-                    all_coef_h[[k]][, 1][15] * irf_exog_fg[t - 3, 5]
+                    # FIX: dodelat pro spravny pocet zpozdeni
 
-                all_coef_h[[k]][, 1][16] * irf_exog_fg[t - 4, 2] +
-                    all_coef_h[[k]][, 1][17] * irf_exog_fg[t - 4, 2] +
-                    all_coef_h[[k]][, 1][18] * irf_exog_fg[t - 4, 3] +
-                    all_coef_h[[k]][, 1][19] * irf_exog_fg[t - 4, 4] +
-                    all_coef_h[[k]][, 1][20] * irf_exog_fg[t - 4, 5]
+                # all_coef_h[[k]][, 1][11] * irf_exog_fg[t - 3, 2] +
+                #     all_coef_h[[k]][, 1][12] * irf_exog_fg[t - 3, 2] +
+                #     all_coef_h[[k]][, 1][13] * irf_exog_fg[t - 3, 3] +
+                #     all_coef_h[[k]][, 1][14] * irf_exog_fg[t - 3, 4] +
+                #     all_coef_h[[k]][, 1][15] * irf_exog_fg[t - 3, 5]
+                # 
+                # all_coef_h[[k]][, 1][16] * irf_exog_fg[t - 4, 2] +
+                #     all_coef_h[[k]][, 1][17] * irf_exog_fg[t - 4, 2] +
+                #     all_coef_h[[k]][, 1][18] * irf_exog_fg[t - 4, 3] +
+                #     all_coef_h[[k]][, 1][19] * irf_exog_fg[t - 4, 4] +
+                #     all_coef_h[[k]][, 1][20] * irf_exog_fg[t - 4, 5]
             }
         }
 
@@ -310,12 +322,12 @@ exogen_irf_h <- function(fg_type, fg_sd) {
 fg_u_coef_h <- coef(res_var_model_h)$oce_h["fg_u_t_1", ] # Dopad exogenní proměnné fg u
 fg_z_coef_h <- coef(res_var_model_h)$oce_h["fg_z_t_1", ] # Dopad exogenní proměnné fg z
 
-fg_u_oce_h_irf_results <- exogen_irf_h(fg_u_coef_h, hac_sd_fg_u_h)
-fg_z_oce_h_irf_results <- exogen_irf_h(fg_z_coef_h, hac_sd_fg_z_h)
+fg_u_oce_h_irf_results <- exogen_irf_h(fg_u_coef_h, fg_sd = hac_sd_fg_u_h, var_count = var_count_h, max_var_lag = max_var_lag_h)
+fg_z_oce_h_irf_results <- exogen_irf_h(fg_z_coef_h, fg_sd = hac_sd_fg_z_h, var_count = var_count_h, max_var_lag = max_var_lag_h)
 
 
 # Plot s intervaly spolehlivosti
-ggplot(fg_u_oce_h_irf_results[4:nrow(fg_u_oce_h_irf_results), ], aes(x = time, y = oce_h)) +
+ggplot(fg_u_oce_h_irf_results[max_var_lag:nrow(fg_u_oce_h_irf_results), ], aes(x = time, y = oce_h)) +
     geom_line(color = "steelblue", linewidth = 1.2) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
     theme_minimal() +
@@ -325,7 +337,7 @@ ggplot(fg_u_oce_h_irf_results[4:nrow(fg_u_oce_h_irf_results), ], aes(x = time, y
         y = "oce_h"
     )
 
-ggplot(fg_z_oce_h_irf_results[4:nrow(fg_z_oce_h_irf_results), ], aes(x = time, y = oce_h)) +
+ggplot(fg_z_oce_h_irf_results[max_var_lag:nrow(fg_z_oce_h_irf_results), ], aes(x = time, y = oce_h)) +
     geom_line(color = "steelblue", linewidth = 1.2) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
     theme_minimal() +
@@ -375,8 +387,13 @@ trans_tdata_p <- trans_tdata |>
         -datum,
         -oce_h,
 
-        # NOTE: swap za aktiva kdyztak
-        -aktiva
+        # NOTE: swap za aktiva
+        -aktiva,
+       # -aktiva_scaled,
+       
+        # NOTE: swap za nezam
+        -nezam
+       # -ipp
     )
 
 # vyber zpozdeni
@@ -411,18 +428,22 @@ var_model_p <- trans_tdata_p |>
     )
 
 
+var_count_p <- 5
+max_var_lag_p <- 1
+
+
 # NOTE: restrikce: FG se objevuje pouze v rovnici pro exp
 res_matrix_p <- rbind(
     # eq aktiva_scaled
-    c(rep(1, 6), 0, 0),
+    c(rep(1, var_count_p * max_var_lag_p + 1), 0, 0),
     # eq nezam
-    c(rep(1, 6), 0, 0),
+    c(rep(1, var_count_p * max_var_lag_p + 1), 0, 0),
     # eq urok
-    c(rep(1, 6), 0, 0),
+    c(rep(1, var_count_p * max_var_lag_p + 1), 0, 0),
     # eq inflace
-    c(rep(1, 6), 0, 0),
+    c(rep(1, var_count_p * max_var_lag_p + 1), 0, 0),
     # eq oce
-    c(rep(1, 6), 1, 1)
+    c(rep(1, var_count_p * max_var_lag_p + 1), 1, 1)
 )
 
 res_var_model_p <- restrict(var_model_p, method = "manual", resmat = res_matrix_p)
@@ -468,15 +489,13 @@ hac_sd_fg_z_p <- hac_matrix_p[nrow(hac_matrix_p), ncol(hac_matrix_p)]
 
 
 # IRF
-exogen_irf_p <- function(fg_type, fg_sd) {
+irf_runs <- 1000
+horizon <- 20
+    
+exogen_irf_p <- function(fg_type, fg_sd, var_count, max_var_lag) {
     # CUSTOM IRF pro exogenni FG na oce_h (+ bootstrap IS)
     set.seed(42) # Pro reprodukovatelnost
 
-    irf_runs <- 1000
-
-    var_count <- 5
-    max_var_lag <- 1
-    horizon <- 20
 
     all_coef_p <- coef(res_var_model_p)
 
@@ -530,8 +549,8 @@ exogen_irf_p <- function(fg_type, fg_sd) {
 fg_u_coef_p <- coef(res_var_model_p)$oce_p["fg_u_t_1", ] # Dopad exogenní proměnné fg u
 fg_z_coef_p <- coef(res_var_model_p)$oce_p["fg_z_t_1", ] # Dopad exogenní proměnné fg z
 
-fg_u_oce_p_irf_results <- exogen_irf_p(fg_u_coef_p, hac_sd_fg_u_p)
-fg_z_oce_p_irf_results <- exogen_irf_p(fg_z_coef_p, hac_sd_fg_z_p)
+fg_u_oce_p_irf_results <- exogen_irf_p(fg_u_coef_p, fg_sd = hac_sd_fg_u_p, var_count = var_count_p, max_var_lag = max_var_lag_p)
+fg_z_oce_p_irf_results <- exogen_irf_p(fg_z_coef_p, fg_sd = hac_sd_fg_z_p, var_count = var_count_p, max_var_lag = max_var_lag_p)
 
 
 # Plot s intervaly spolehlivosti
