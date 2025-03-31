@@ -9,3 +9,7 @@ ir - procento - policy rate - konec mesice i prumer mesice - https://www.riksban
 bs_sweden - milion sek - !WEEKLY - https://www.riksbank.se/en-gb/statistics/riksbanks-balance-sheet/the-riksbanks-assets-and-liabilities-the-weekly-report/
 
 unemp - procento - sezonne ocisteno - 15y 74y - https://www.scb.se/en/finding-statistics/statistics-by-subject-area/labour-market/labour-force-supply/labour-force-surveys-lfs/pong/tables-and-graphs/seasonally-adjusted-data/time-series-on-the-unemployment-rate-persons-15-74-years/
+
+exp_m - procento - !DAILY - Note. Inflation compensation refers to a 5-year period starting in 5 years’ time, calculated on the basis of bond yields. / The market-based measure of inflation expectations refers to a 5-year period starting in 5 years’ time, calculated on the basis of bond yields. Both market expectations and expecta­tions from Prospera refer to the CPI. - https://www.riksbank.se/en-gb/monetary-policy/monetary-policy-report/
+
+exp_m_7ma - procento - !DAILY - The inflation compensation refers to a 5-year period starting in 5 years’ time, calculated from bond yields (7-day moving average). Both inflation compensation and expectations from Prospera refer to the CPI. For money market players, Prospera the line refers to quarterly data up to September 2009 and then to monthly data. - https://www.riksbank.se/en-gb/monetary-policy/monetary-policy-report/
