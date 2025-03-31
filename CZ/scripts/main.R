@@ -95,8 +95,8 @@ trans_tdata <- tibble_data |>
         oce_h = c(NA, diff(oce_h)),
 
         # NOTE: Zpozdeni FG
-        forward_guidance_uvolneni = c(NA, forward_guidance_uvolneni[2:length(forward_guidance_uvolneni)]),
-        forward_guidance_zprisneni = c(NA, forward_guidance_zprisneni[2:length(forward_guidance_zprisneni)])
+        forward_guidance_uvolneni = c(NA, forward_guidance_uvolneni[-length(forward_guidance_uvolneni)]),
+        forward_guidance_zprisneni = c(NA, forward_guidance_zprisneni[-length(forward_guidance_zprisneni)])
     ) |>
     rename(
         assets = aktiva,
