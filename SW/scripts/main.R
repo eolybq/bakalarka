@@ -75,8 +75,8 @@ acf_pacf(tibble_data, 40)
 
 trans_tdata <- tibble_data |>
     mutate(
-        fx_res = final(seas(fx_res)),
-        fx_res_scaled = final(seas(fx_res_scaled)),
+        aktiva = final(seas(aktiva)),
+        aktiva_scaled = final(seas(aktiva_scaled)),
         nezam = final(seas(nezam)),
         ipp = final(seas(ipp)),
         # urok = final(seas(urok)), # NOTE: nefunguje ale asi neni sezonost takze idk
@@ -85,8 +85,8 @@ trans_tdata <- tibble_data |>
         oce_h = final(seas(oce_h))
     ) |>
     mutate(
-        fx_res = c(NA, NA, diff(diff(log(fx_res)) * 100)),
-        fx_res_scaled = c(NA, NA, diff(diff(log(fx_res_scaled)) * 100)),
+        aktiva = c(NA, NA, diff(diff(log(aktiva)) * 100)),
+        aktiva_scaled = c(NA, NA, diff(diff(log(aktiva_scaled)) * 100)),
         nezam = c(NA, diff(nezam)),
         ipp = c(NA, NA, diff(diff(log(ipp)) * 100)),
         urok = c(NA, diff(urok)),
@@ -99,8 +99,8 @@ trans_tdata <- tibble_data |>
         forward_guidance_zprisneni = c(NA, forward_guidance_zprisneni[-length(forward_guidance_zprisneni)])
     ) |>
     rename(
-        fx_res = fx_res,
-        fx_res_scl = fx_res_scaled,
+        assets = aktiva,
+        assets_scl = aktiva_scaled,
         fg_u = forward_guidance_uvolneni,
         fg_z = forward_guidance_zprisneni,
         unemp = nezam,
@@ -125,7 +125,7 @@ acf_pacf(tibble_data, 40)
 # Graf všech proměnných v jednom grafu
 trans_tdata |>
     dplyr::select(
-        -fx_res,
+        -assets,
         -fg_u,
         -fg_z
     ) |>
@@ -146,9 +146,9 @@ trans_tdata_h <- trans_tdata |>
         -datum,
         -exp_p,
 
-        # NOTE: swap za fx_res
-        -fx_res,
-        # -fx_res_scl,
+        # NOTE: swap za aktiva
+        -assets,
+        # -assets_scl,
         
         # NOTE: swap za unemp
         -unemp
@@ -193,7 +193,7 @@ max_var_lag_h <- 5
 
 # NOTE: restrikce: FG se objevuje pouze v rovnici pro exp
 res_matrix_h <- rbind(
-    # eq fx_res_scl
+    # eq assets_scl
     c(rep(1, var_count_h * max_var_lag_h + 1), 0, 0),
     # eq unemp/ipp
     c(rep(1, var_count_h * max_var_lag_h + 1), 0, 0),
@@ -264,7 +264,7 @@ exogen_irf_h <- function(fg_type, fg_sd, var_count, max_var_lag) {
 
     for (sim in 1:irf_runs) {
         irf_exog_fg <- tibble(
-            "fx_res_scl" = 0,
+            "assets_scl" = 0,
             # NOTE: swap za unemp
             # "unemp" = 0,
             "ipp" = 0,
@@ -361,8 +361,8 @@ ggplot(fg_z_exp_h_irf_results[max_var_lag_h:nrow(fg_z_exp_h_irf_results), ], aes
 akt_exp_h_irf <- irf(
     res_var_model_h,
 
-    # NOTE: swap za fx_res kdyztak
-    impulse = "fx_res_scl",
+    # NOTE: swap za aktiva kdyztak
+    impulse = "assets_scl",
     response = "exp_h",
     n.ahead = 20,
     ortho = FALSE,
@@ -373,8 +373,8 @@ plot(akt_exp_h_irf)
 
 
 # Granger causality
-# NOTE: swap za fx_res kdyztak
-causality(res_var_model_h, cause = "fx_res_scl")
+# NOTE: swap za aktiva kdyztak
+causality(res_var_model_h, cause = "assets_scl")
 
 # FIX: zase hazi chybu asi - exogenni
 # causality(res_var_model_h, cause = "fg_z")
@@ -395,9 +395,9 @@ trans_tdata_p <- trans_tdata |>
         -datum,
         -exp_h,
 
-        # NOTE: swap za fx_res
-        -fx_res,
-       # -fx_res_scl,
+        # NOTE: swap za aktiva
+        -assets,
+       # -assets_scl,
        
         # NOTE: swap za unemp
         -unemp
@@ -442,7 +442,7 @@ max_var_lag_p <- 1
 
 # NOTE: restrikce: FG se objevuje pouze v rovnici pro exp
 res_matrix_p <- rbind(
-    # eq fx_res_scl
+    # eq assets_scl
     c(rep(1, var_count_p * max_var_lag_p + 1), 0, 0),
     # eq unemp/ipp
     c(rep(1, var_count_p * max_var_lag_p + 1), 0, 0),
@@ -512,7 +512,7 @@ exogen_irf_p <- function(fg_type, fg_sd, var_count, max_var_lag) {
 
     for (sim in 1:irf_runs) {
         irf_exog_fg <- tibble(
-            "fx_res_scl" = 0,
+            "assets_scl" = 0,
             # NOTE: swap za unemp
             # "unemp" = 0,
             "ipp" = 0,
@@ -591,8 +591,8 @@ ggplot(fg_z_exp_p_irf_results, aes(x = time, y = exp_p)) +
 akt_exp_p_irf <- irf(
     res_var_model_p,
 
-    # NOTE: swap za fx_res kdyztak
-    impulse = "fx_res_scl",
+    # NOTE: swap za aktiva kdyztak
+    impulse = "assets_scl",
     response = "exp_p",
     n.ahead = 20,
     ortho = FALSE,
@@ -603,8 +603,8 @@ plot(akt_exp_p_irf)
 
 
 # Granger causality
-# NOTE: swap za fx_res kdyztak
-causality(res_var_model_p, cause = "fx_res_scl")
+# NOTE: swap za aktiva kdyztak
+causality(res_var_model_p, cause = "assets_scl")
 
 # FIX: zase hazi chybu asi - exogenni
 # causality(res_var_model_p, cause = "fg_z")

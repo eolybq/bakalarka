@@ -9,7 +9,7 @@ cpi2 <- read_excel("data/rawdata/cpi2.xlsx", n_max = 82, skip = 6)
 unemp <- read_excel("data/rawdata/unemp.xlsx", range = "A9:HU101")
 ipp <- read_excel("data/rawdata/ipp.xlsx", n_max = 301, skip = 8)
 b_sheet <- read_delim("data/rawdata/rozvaha_cnb.csv", delim = ";")
-ir <- read_delim("data/rawdata/repo_konec_m.csv", delim = ";")
+ir <- read_delim("data/rawdata/repo_prumer_m.csv", delim = ";")
 fg_uncomplete <- read_excel("data/rawdata/fg.xlsx")
 ie_p <- read_excel("data/rawdata/CZ_p_m.xlsx")
 ie_h <- read_excel("data/rawdata/CZ_h_m.xlsx")
@@ -49,18 +49,18 @@ unemp_ts <- ts(unlist(unemp[unemp[[1]] == "Celkem ČR", ][-1]), start = c(2005, 
 ipp_ts <- ts(ipp[[4]][nrow(ipp):1], start = c(2000, 1), end = c(2025, 1), frequency = 12)
 hdp_ts <- ts(arrange(hdp, Období)[[2]], start = c(1995, 1), frequency = 4)
 
-# Skalovana fx_rez
+# Skalovana aktiva
 hdp_month <- hdp_ts |>
     window(start = c(2005, 1), end = c(2023, 4)) |>
     rep(each = 3)
-scl_fx_rez <- window(asset_ts, start = c(2005, 1), end = c(2023, 12)) / hdp_month
+scl_aktiva <- window(asset_ts, start = c(2005, 1), end = c(2023, 12)) / hdp_month
 
 
 
 tibble_data <- tibble(
     "datum" = format(seq(as.Date("2005-1-01"), as.Date("2023-12-01"), "month"), "%Y-%m"),
-    "fx_rez" = window(asset_ts, start = c(2005, 1), end = c(2023, 12)),
-    "fx_rez_scaled" = scl_fx_rez,
+    "aktiva" = window(asset_ts, start = c(2005, 1), end = c(2023, 12)),
+    "aktiva_scaled" = scl_aktiva,
     "forward_guidance_uvolneni" = window(fg_down_ts, start = c(2005, 1), end = c(2023, 12)),
     "forward_guidance_zprisneni" = window(fg_up_ts, start = c(2005, 1), end = c(2023, 12)),
     "nezam" = window(unemp_ts, start = c(2005, 1), end = c(2023, 12)),

@@ -8,6 +8,8 @@ ir - procento - !DAILY - Minimum bid rate/fixed rate - https://data.ecb.europa.e
 
 ds_eurosystem - holdings of debt securities issued by euro area residents (v rozvaha Eurosystemu) - changing composition - miliony eur - sezonne neocisteno - stocks (hodnota na konci období/tady měsíce) - https://data.ecb.europa.eu/data/datasets/BSI/BSI.M.U2.N.C.A30.A.1.U2.0000.Z01.E
 
+bs_eurosystem - Total Assets/Liabilities - changing composition - miliony eur - sezonne neoceisteno - stocks (hodnota na konci obdobi/tady měsíce) - https://data.ecb.europa.eu/data/datasets/BSI/BSI.M.U2.N.C.T00.A.1.Z5.0000.Z01.E
+
 unemp - fixed composition EA20 - procento - sezonne ocisteno - Age 15 to 74 - https://data.ecb.europa.eu/data/datasets/LFSI/LFSI.M.I9.S.UNEHRT.TOTAL0.15_74.T
 
 ilb - procento - !DAILY - 10y maturity - https://www.deutsche-finanzagentur.de/en/federal-securities/factsheet/isin/DE0001030567?cHash=cf7ba86e12345f6815d828d07453f348
