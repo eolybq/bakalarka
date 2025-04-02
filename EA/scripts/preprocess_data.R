@@ -8,7 +8,7 @@ hicp <- read_tsv("data/rawdata/hicp.tsv")
 unemp <- read_csv("data/rawdata/unemp.csv")
 ipi <- read_csv("data/rawdata/ipi.csv")
 securities <- read_csv("data/rawdata/ds_eurosystem.csv")
-bs_sheet <- read_csv("data/rawdata/bs_eurosystem.csv")
+b_sheet <- read_csv("data/rawdata/b_eurosystem.csv")
 ir <- read_excel("data/rawdata/ir.xlsx", sheet = 2)
 # fg_uncomplete <- read_excel("data/rawdata/fg.xlsx")
 ie_h <- read_excel("data/rawdata/EA_H_M.xlsx")
@@ -45,50 +45,84 @@ hicp_ts <- ts(hicp_clean[["value"]], start = c(1996, 1), end = c(2025, 2), frequ
 unemp_ts <- ts(unemp[[3]], start = c(2000, 1), end = c(2025, 1), frequency = 12)
 ipi_ts <- ts(ipi[[3]], start = c(1991, 1), end = c(2025, 1), frequency = 12)
 securities_ts <- ts(securities[[3]], start = c(1997, 9), end = c(2025, 2), frequency = 12)
-bs_sheet_ts <- ts(bs_sheet[[3]], start = c(1997, 9), end = c(2025, 2), frequency = 12)
+b_sheet_ts <- ts(b_sheet[[3]], start = c(1997, 9), end = c(2025, 2), frequency = 12)
 # fg_down_ts <- ts(fg_down[[2]], start = c(2005, 1), end = c(2024, 11), frequency = 12)
 # fg_up_ts <- ts(fg_up[[2]], start = c(2005, 1), end = c(2024, 11), frequency = 12)
 ie_h_ts <- ts(ie_h[[2]], start = c(1997, 1), end = c(2023, 9), frequency = 12)
+gdp_ts <- ts(gdp[[3]], start = c(1995, 1), end = c(2024, 4), frequency = 4)
+
 
 # DAILY
-# FIX: udelat konec mesice
-ir_ts <- ts(ir[[3]], start = c(1999, 1, 1), end = c(2025, 3, 29), frequency = 365)
-# FIX: JE JEN PRACOVNI DNY - spis vzit steje prumer asi nebo tereticky konec ale psis prumer a pak BEI
-bund10_ts <- ts(bund10[[3]], start = c(2015, 7, 15), end = c(2025, 3, 28), frequency = 365)
-ilb_ts <- ts(ilb[[3]], start = c(2015, 3, 10), end = c(2025, 3, 28), frequency = 365)
+# NOTE: oboji prevod na last obs of month
+ir_monthly <- ir |> 
+    mutate(month = floor_date(as_date(DATE), "month")) |>
+    group_by(month) |>
+    filter(DATE == max(DATE))
+ir_ts <- ts(ir_monthly[[3]], start = c(1999, 1), end = c(2025, 3), frequency = 12)
+    
+
+first_obs_bund10 <- min(bund10[[2]])
+ilb_date_fix <- ilb |> 
+    filter(`Yield (x)` >= first_obs_bund10)
+exp_m_data <- bind_cols(
+    "date" = bund10[[2]],
+    "ilb" = ilb_date_fix[[3]],
+    "bund10" = bund10[[3]]
+)
+
+bei <- exp_m_data |>
+    mutate(month = floor_date(as_date(date), "month")) |>
+    group_by(month) |>
+    filter(date == max(date)) |>
+    summarise(monthly_BEI = first(bund10 - ilb))
+
+exp_m_ts <- ts(bei[[2]], start = c(2015, 7), end = c(2025, 3), frequency = 12)
+
 
 # Skalovana aktiva
-hdp_month <- hdp_ts |>
-    window(start = c(2005, 1), end = c(2023, 4)) |>
+gdp_month <- gdp_ts |>
+    window(start = c(1997, 4)) |>
     rep(each = 3)
-scl_aktiva <- window(asset_ts, start = c(2005, 1), end = c(2023, 12)) / hdp_month
+scl_securities <- window(securities_ts, start = c(1997, 10), end = c(2024, 12)) / gdp_month
+scl_b_sheet <- window(b_sheet_ts, start = c(1997, 10), end = c(2024, 12)) / gdp_month
 
 
 
 tibble_data <- tibble(
-    "datum" = format(seq(as.Date("2005-1-01"), as.Date("2023-12-01"), "month"), "%Y-%m"),
-    "aktiva" = window(asset_ts, start = c(2005, 1), end = c(2023, 12)),
-    "aktiva_scaled" = scl_aktiva,
-    "forward_guidance_uvolneni" = window(fg_down_ts, start = c(2005, 1), end = c(2023, 12)),
-    "forward_guidance_zprisneni" = window(fg_up_ts, start = c(2005, 1), end = c(2023, 12)),
-    "nezam" = window(unemp_ts, start = c(2005, 1), end = c(2023, 12)),
-    "ipp" = window(ipp_ts, start = c(2005, 1), end = c(2023, 12)),
-    "urok" = window(ir_ts, start = c(2005, 1), end = c(2023, 12)),
-    "inflace" = window(cpi_ts, start = c(2005, 1), end = c(2023, 12)),
-    "oce_p" = window(ie_p_ts, start = c(2005, 1), end = c(2023, 12)),
-    "oce_h" = window(ie_h_ts, start = c(2005, 1), end = c(2023, 12))
+    "date" = format(seq(as.Date("1999-1-01"), as.Date("2023-9-01"), "month"), "%Y-%m"),
+    "assets" = window(b_sheet_ts, start = c(1999, 1), end = c(2023, 9)),
+    "assets_scl" = window(scl_b_sheet, start = c(1999, 1), end = c(2023, 9)),
+    "securities" =  window(securities_ts, start = c(1999, 1), end = c(2023, 9)),
+    "securities_scl" = window(scl_securities, start = c(1999, 1), end = c(2023, 9)),
+    # "fg_u" = window(fg_down_ts, start = c(1999, 1), end = c(2023, 9)),
+    # "fg_z" = window(fg_up_ts, start = c(1999, 1), end = c(2023, 9)),
+    "ipi" = window(ipi_ts, start = c(1999, 1), end = c(2023, 9)),
+    "ir" = window(ir_ts, start = c(1999, 1), end = c(2023, 9)),
+    "hicp" = window(hicp_ts, start = c(1999, 1), end = c(2023, 9)),
+    "exp_h" = window(ie_h_ts, start = c(1999, 1), end = c(2023, 9)),
 )
 
+# Pripojeni exp_m - pridani NA
+exp_m_date_tibble <- tibble(exp_m = exp_m_ts)
+exp_m_date_tibble$date <- format(seq(as.Date("2015-7-01"), as.Date("2025-3-01"), "month"), "%Y-%m")
+
+tibble_data <- tibble_data |>
+     left_join(exp_m_date_tibble)
+    
+
+
 ts_objects <- list(
-    cpi_ts = cpi_ts,
-    asset_ts = asset_ts,
-    fg_down_ts = fg_down_ts,
-    fg_up_ts = fg_up_ts,
-    ie_p_ts = ie_p_ts,
-    ie_h_ts = ie_h_ts,
+    assets_ts = b_sheet_ts,
+    assets_scl_ts = scl_b_sheet,
+    securities_ts = securities_ts,
+    securities_scl_ts = scl_securities,
+    # fg_u_ts = fg_down_ts,
+    # fg_z_ts = fg_up_ts,
+    ipi_ts = ipi_ts,
     ir_ts = ir_ts,
-    unemp_ts = unemp_ts,
-    ipp_ts = ipp_ts
+    hicp_ts = hicp_ts,
+    exp_h_ts = ie_h_ts,
+    unemp_ts = unemp_ts
 )
 
 

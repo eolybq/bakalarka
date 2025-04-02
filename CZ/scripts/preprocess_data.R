@@ -17,7 +17,7 @@ hdp <- read_delim("data/rawdata/hdp.csv", delim = ";")
 
 # doplnění implicitních chybějících hodnot ve FG a rozdeleni na uvoneni a zprisneni
 fg_uncomplete$time <- format(fg_uncomplete$time, "%Y-%m")
-fg_complete <- tibble("time" = seq(as.Date("2005-1-01"), as.Date("2024-12-01"), "month")) |>
+fg_complete <- tibble("time" = seq(as.Date("2002-10-01"), as.Date("2024-12-01"), "month")) |>
     mutate(
         time = format(time, "%Y-%m")
     )
@@ -39,9 +39,9 @@ fg_up <- fg_complete |>
 cpi_ts <- ts(c(cpi1[[2]], cpi2[[2]]), start = c(1995, 1), frequency = 12)
 
 
-asset_ts <- ts(b_sheet[[13]][nrow(b_sheet):1], start = c(2002, 9), frequency = 12) # nolint
-fg_down_ts <- ts(fg_down[[2]], start = c(2005, 1), end = c(2024, 11), frequency = 12)
-fg_up_ts <- ts(fg_up[[2]], start = c(2005, 1), end = c(2024, 11), frequency = 12)
+fx_res_ts <- ts(b_sheet[[13]][nrow(b_sheet):1], start = c(2002, 9), frequency = 12) # nolint
+fg_down_ts <- ts(fg_down[[2]], start = c(2002, 10), end = c(2024, 11), frequency = 12)
+fg_up_ts <- ts(fg_up[[2]], start = c(2002, 10), end = c(2024, 11), frequency = 12)
 ie_p_ts <- ts(ie_p[[2]], start = c(1999, 5), frequency = 12)
 ie_h_ts <- ts(ie_h[[2]], start = c(2001, 1), frequency = 12)
 ir_ts <- ts(ir[[2]][nrow(ir):1], start = c(1995, 12), frequency = 12) # nolint: seq_linter.
@@ -49,35 +49,35 @@ unemp_ts <- ts(unlist(unemp[unemp[[1]] == "Celkem ČR", ][-1]), start = c(2005, 
 ipp_ts <- ts(ipp[[4]][nrow(ipp):1], start = c(2000, 1), end = c(2025, 1), frequency = 12)
 hdp_ts <- ts(arrange(hdp, Období)[[2]], start = c(1995, 1), frequency = 4)
 
-# Skalovana fx_rez
+# Skalovana fx_res
 hdp_month <- hdp_ts |>
-    window(start = c(2005, 1), end = c(2023, 4)) |>
+    window(start = c(2002, 4)) |>
     rep(each = 3)
-scl_fx_rez <- window(asset_ts, start = c(2005, 1), end = c(2023, 12)) / hdp_month
+scl_fx_res <- window(fx_res_ts, start = c(2002, 10), end = c(2024, 9)) / hdp_month
 
 
 
 tibble_data <- tibble(
-    "datum" = format(seq(as.Date("2005-1-01"), as.Date("2023-12-01"), "month"), "%Y-%m"),
-    "fx_rez" = window(asset_ts, start = c(2005, 1), end = c(2023, 12)),
-    "fx_rez_scaled" = scl_fx_rez,
-    "forward_guidance_uvolneni" = window(fg_down_ts, start = c(2005, 1), end = c(2023, 12)),
-    "forward_guidance_zprisneni" = window(fg_up_ts, start = c(2005, 1), end = c(2023, 12)),
-    "nezam" = window(unemp_ts, start = c(2005, 1), end = c(2023, 12)),
-    "ipp" = window(ipp_ts, start = c(2005, 1), end = c(2023, 12)),
-    "urok" = window(ir_ts, start = c(2005, 1), end = c(2023, 12)),
-    "inflace" = window(cpi_ts, start = c(2005, 1), end = c(2023, 12)),
-    "oce_p" = window(ie_p_ts, start = c(2005, 1), end = c(2023, 12)),
-    "oce_h" = window(ie_h_ts, start = c(2005, 1), end = c(2023, 12))
+    "date" = format(seq(as.Date("2002-10-01"), as.Date("2024-7-01"), "month"), "%Y-%m"),
+    "fx_res" = window(fx_res_ts, start = c(2002, 10), end = c(2024, 7)),
+    "fx_res_scl" = window(scl_fx_res, start = c(2002, 10), end = c(2024, 7)),
+    "fg_u" = window(fg_down_ts, start = c(2002, 10), end = c(2024, 7)),
+    "fg_z" = window(fg_up_ts, start = c(2002, 10), end = c(2024, 7)),
+    "ipp" = window(ipp_ts, start = c(2002, 10), end = c(2024, 7)),
+    "ir" = window(ir_ts, start = c(2002, 10), end = c(2024, 7)),
+    "cpi" = window(cpi_ts, start = c(2002, 10), end = c(2024, 7)),
+    "exp_h" = window(ie_h_ts, start = c(2002, 10), end = c(2024, 7)),
+    "exp_p" = window(ie_p_ts, start = c(2002, 10), end = c(2024, 7))
 )
 
 ts_objects <- list(
     cpi_ts = cpi_ts,
-    asset_ts = asset_ts,
-    fg_down_ts = fg_down_ts,
-    fg_up_ts = fg_up_ts,
-    ie_p_ts = ie_p_ts,
-    ie_h_ts = ie_h_ts,
+    fx_res_ts = fx_res_ts,
+    fx_res_scl_ts = scl_fx_res,
+    fg_u_ts = fg_down_ts,
+    fg_z_ts = fg_up_ts,
+    exp_p_ts = ie_p_ts,
+    exp_h_ts = ie_h_ts,
     ir_ts = ir_ts,
     unemp_ts = unemp_ts,
     ipp_ts = ipp_ts

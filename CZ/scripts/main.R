@@ -47,9 +47,9 @@ check_stationarity <- function(data) {
 
 variables <- tibble_data |>
     dplyr::select(
-        -datum,
-        -forward_guidance_uvolneni,
-        -forward_guidance_zprisneni,
+        -date,
+        -fg_u,
+        -fg_z,
     ) |>
     drop_na()
 check_stationarity(variables)
@@ -76,46 +76,33 @@ acf_pacf(tibble_data, 40)
 trans_tdata <- tibble_data |>
     mutate(
         fx_res = final(seas(fx_res)),
-        fx_res_scaled = final(seas(fx_res_scaled)),
-        nezam = final(seas(nezam)),
+        fx_res_scl = final(seas(fx_res_scl)),
         ipp = final(seas(ipp)),
-        # urok = final(seas(urok)), # NOTE: nefunguje ale asi neni sezonost takze idk
-        inflace = final(seas(inflace)),
-        oce_p = final(seas(oce_p)),
-        oce_h = final(seas(oce_h))
+        # ir = final(seas(ir)), # NOTE: nefunguje ale asi neni sezonost takze idk
+        cpi = final(seas(cpi)),
+        exp_p = final(seas(exp_p)),
+        exp_h = final(seas(exp_h))
     ) |>
     mutate(
         fx_res = c(NA, NA, diff(diff(log(fx_res)) * 100)),
-        fx_res_scaled = c(NA, NA, diff(diff(log(fx_res_scaled)) * 100)),
-        nezam = c(NA, diff(nezam)),
+        fx_res_scl = c(NA, NA, diff(diff(log(fx_res_scl)) * 100)),
         ipp = c(NA, NA, diff(diff(log(ipp)) * 100)),
-        urok = c(NA, diff(urok)),
-        inflace = c(NA, NA, diff(diff(log(inflace)) * 100)),
-        oce_p = c(NA, diff(oce_p)),
-        oce_h = c(NA, diff(oce_h)),
+        ir = c(NA, diff(ir)),
+        cpi = c(NA, NA, diff(diff(log(cpi)) * 100)),
+        exp_p = c(NA, diff(exp_p)),
+        exp_h = c(NA, diff(exp_h)),
 
         # NOTE: Zpozdeni FG
-        forward_guidance_uvolneni = c(NA, forward_guidance_uvolneni[-length(forward_guidance_uvolneni)]),
-        forward_guidance_zprisneni = c(NA, forward_guidance_zprisneni[-length(forward_guidance_zprisneni)])
-    ) |>
-    rename(
-        fx_res = fx_res,
-        fx_res_scl = fx_res_scaled,
-        fg_u = forward_guidance_uvolneni,
-        fg_z = forward_guidance_zprisneni,
-        unemp = nezam,
-        ir = urok,
-        cpi = inflace,
-        exp_h = oce_h,
-        exp_p = oce_p
+        fg_u = c(NA, fg_u[-length(fg_u)]),
+        fg_z = c(NA, fg_z[-length(fg_z)])
     ) |>
     drop_na()
-# Omezení na před Covid inflace
-# filter(datum < "2022-01")
+# Omezení na před Covid cpi
+# filter(date < "2022-01")
 
 variables <- trans_tdata |>
     dplyr::select(
-        -datum,
+        -date,
         -fg_z,
         -fg_u
     )
@@ -129,8 +116,8 @@ trans_tdata |>
         -fg_u,
         -fg_z
     ) |>
-    pivot_longer(cols = -datum) |>
-    ggplot(aes(x = datum, y = value, color = name, group = name)) +
+    pivot_longer(cols = -date) |>
+    ggplot(aes(x = date, y = value, color = name, group = name)) +
     geom_line() +
     theme_minimal() +
     labs(title = "Plot všech proměnných v jednom grafu")
@@ -143,16 +130,12 @@ trans_tdata |>
 # DOMACNOSTI ==============
 trans_tdata_h <- trans_tdata |>
     dplyr::select(
-        -datum,
+        -date,
         -exp_p,
 
         # NOTE: swap za fx_res
         -fx_res,
         # -fx_res_scl,
-        
-        # NOTE: swap za unemp
-        -unemp
-        # -ipp
     )
 
 # vyber zpozdeni
@@ -178,7 +161,7 @@ var_model_h <- trans_tdata_h |>
         -fg_z,
     ) |>
     vars::VAR(
-        p = 5,
+        p = 4,
         type = "const",
         exogen = tibble(
             fg_u = trans_tdata_h$fg_u,
@@ -188,14 +171,14 @@ var_model_h <- trans_tdata_h |>
 
 
 var_count_h <- 5
-max_var_lag_h <- 5
+max_var_lag_h <- 4
 
 
 # NOTE: restrikce: FG se objevuje pouze v rovnici pro exp
 res_matrix_h <- rbind(
     # eq fx_res_scl
     c(rep(1, var_count_h * max_var_lag_h + 1), 0, 0),
-    # eq unemp/ipp
+    # eq ipp
     c(rep(1, var_count_h * max_var_lag_h + 1), 0, 0),
     # eq ir
     c(rep(1, var_count_h * max_var_lag_h + 1), 0, 0),
@@ -265,8 +248,6 @@ exogen_irf_h <- function(fg_type, fg_sd, var_count, max_var_lag) {
     for (sim in 1:irf_runs) {
         irf_exog_fg <- tibble(
             "fx_res_scl" = 0,
-            # NOTE: swap za unemp
-            # "unemp" = 0,
             "ipp" = 0,
             "ir" = 0,
             "cpi" = 0,
@@ -292,19 +273,17 @@ exogen_irf_h <- function(fg_type, fg_sd, var_count, max_var_lag) {
                     all_coef_h[[k]][, 1][9] * irf_exog_fg[t - 2, 4] +
                     all_coef_h[[k]][, 1][10] * irf_exog_fg[t - 2, 5]
 
-                    # FIX: dodelat pro spravny pocet zpozdeni
+                all_coef_h[[k]][, 1][11] * irf_exog_fg[t - 3, 2] +
+                    all_coef_h[[k]][, 1][12] * irf_exog_fg[t - 3, 2] +
+                    all_coef_h[[k]][, 1][13] * irf_exog_fg[t - 3, 3] +
+                    all_coef_h[[k]][, 1][14] * irf_exog_fg[t - 3, 4] +
+                    all_coef_h[[k]][, 1][15] * irf_exog_fg[t - 3, 5]
 
-                # all_coef_h[[k]][, 1][11] * irf_exog_fg[t - 3, 2] +
-                #     all_coef_h[[k]][, 1][12] * irf_exog_fg[t - 3, 2] +
-                #     all_coef_h[[k]][, 1][13] * irf_exog_fg[t - 3, 3] +
-                #     all_coef_h[[k]][, 1][14] * irf_exog_fg[t - 3, 4] +
-                #     all_coef_h[[k]][, 1][15] * irf_exog_fg[t - 3, 5]
-                # 
-                # all_coef_h[[k]][, 1][16] * irf_exog_fg[t - 4, 2] +
-                #     all_coef_h[[k]][, 1][17] * irf_exog_fg[t - 4, 2] +
-                #     all_coef_h[[k]][, 1][18] * irf_exog_fg[t - 4, 3] +
-                #     all_coef_h[[k]][, 1][19] * irf_exog_fg[t - 4, 4] +
-                #     all_coef_h[[k]][, 1][20] * irf_exog_fg[t - 4, 5]
+                all_coef_h[[k]][, 1][16] * irf_exog_fg[t - 4, 2] +
+                    all_coef_h[[k]][, 1][17] * irf_exog_fg[t - 4, 2] +
+                    all_coef_h[[k]][, 1][18] * irf_exog_fg[t - 4, 3] +
+                    all_coef_h[[k]][, 1][19] * irf_exog_fg[t - 4, 4] +
+                    all_coef_h[[k]][, 1][20] * irf_exog_fg[t - 4, 5]
             }
         }
 
@@ -392,16 +371,12 @@ plot(v_decomp_h)
 # PROFESIONALOVE ==============
 trans_tdata_p <- trans_tdata |>
     dplyr::select(
-        -datum,
+        -date,
         -exp_h,
 
         # NOTE: swap za fx_res
         -fx_res,
        # -fx_res_scl,
-       
-        # NOTE: swap za unemp
-        -unemp
-       # -ipp
     )
 
 # vyber zpozdeni
@@ -427,7 +402,7 @@ var_model_p <- trans_tdata_p |>
         -fg_z,
     ) |>
     vars::VAR(
-        p = 1,
+        p = 2,
         type = "const",
         exogen = tibble(
             fg_u = trans_tdata_p$fg_u,
@@ -437,14 +412,14 @@ var_model_p <- trans_tdata_p |>
 
 
 var_count_p <- 5
-max_var_lag_p <- 1
+max_var_lag_p <- 2
 
 
 # NOTE: restrikce: FG se objevuje pouze v rovnici pro exp
 res_matrix_p <- rbind(
     # eq fx_res_scl
     c(rep(1, var_count_p * max_var_lag_p + 1), 0, 0),
-    # eq unemp/ipp
+    # eq ipp
     c(rep(1, var_count_p * max_var_lag_p + 1), 0, 0),
     # eq ir
     c(rep(1, var_count_p * max_var_lag_p + 1), 0, 0),
@@ -513,8 +488,6 @@ exogen_irf_p <- function(fg_type, fg_sd, var_count, max_var_lag) {
     for (sim in 1:irf_runs) {
         irf_exog_fg <- tibble(
             "fx_res_scl" = 0,
-            # NOTE: swap za unemp
-            # "unemp" = 0,
             "ipp" = 0,
             "ir" = 0,
             "cpi" = 0,
@@ -533,6 +506,12 @@ exogen_irf_p <- function(fg_type, fg_sd, var_count, max_var_lag) {
                     all_coef_p[[k]][, 1][3] * irf_exog_fg[t - 1, 3] +
                     all_coef_p[[k]][, 1][4] * irf_exog_fg[t - 1, 4] +
                     all_coef_p[[k]][, 1][5] * irf_exog_fg[t - 1, 5]
+                
+                all_coef_p[[k]][, 1][6] * irf_exog_fg[t - 2, 2] +
+                    all_coef_p[[k]][, 1][7] * irf_exog_fg[t - 2, 2] +
+                    all_coef_p[[k]][, 1][8] * irf_exog_fg[t - 2, 3] +
+                    all_coef_p[[k]][, 1][9] * irf_exog_fg[t - 2, 4] +
+                    all_coef_p[[k]][, 1][10] * irf_exog_fg[t - 2, 5]
             }
         }
 
