@@ -89,25 +89,18 @@ scl_b_sheet <- window(b_sheet_ts, start = c(1997, 10), end = c(2024, 12)) / gdp_
 
 
 tibble_data <- tibble(
-    "date" = format(seq(as.Date("1999-1-01"), as.Date("2023-9-01"), "month"), "%Y-%m"),
-    "assets" = window(b_sheet_ts, start = c(1999, 1), end = c(2023, 9)),
-    "assets_scl" = window(scl_b_sheet, start = c(1999, 1), end = c(2023, 9)),
-    "securities" =  window(securities_ts, start = c(1999, 1), end = c(2023, 9)),
-    "securities_scl" = window(scl_securities, start = c(1999, 1), end = c(2023, 9)),
-    # "fg_u" = window(fg_down_ts, start = c(1999, 1), end = c(2023, 9)),
-    # "fg_z" = window(fg_up_ts, start = c(1999, 1), end = c(2023, 9)),
-    "ipi" = window(ipi_ts, start = c(1999, 1), end = c(2023, 9)),
-    "ir" = window(ir_ts, start = c(1999, 1), end = c(2023, 9)),
-    "hicp" = window(hicp_ts, start = c(1999, 1), end = c(2023, 9)),
-    "exp_h" = window(ie_h_ts, start = c(1999, 1), end = c(2023, 9)),
+    "date" = format(seq(as.Date("1999-12-01"), as.Date("2023-9-01"), "month"), "%Y-%m"),
+    "assets" = window(b_sheet_ts, start = c(1999, 12), end = c(2023, 9)),
+    "assets_scl" = window(scl_b_sheet, start = c(1999, 12), end = c(2023, 9)),
+    "securities" =  window(securities_ts, start = c(1999, 12), end = c(2023, 9)),
+    "securities_scl" = window(scl_securities, start = c(1999, 12), end = c(2023, 9)),
+    # "fg_u" = window(fg_down_ts, start = c(1999, 12), end = c(2023, 9)),
+    # "fg_z" = window(fg_up_ts, start = c(1999, 12), end = c(2023, 9)),
+    "ipi" = window(ipi_ts, start = c(1999, 12), end = c(2023, 9)),
+    "ir" = window(ir_ts, start = c(1999, 12), end = c(2023, 9)),
+    "hicp" = window(hicp_ts, start = c(1999, 12), end = c(2023, 9)),
+    "exp_h" = window(ie_h_ts, start = c(1999, 12), end = c(2023, 9)),
 )
-
-# Pripojeni exp_m - pridani NA
-exp_m_date_tibble <- tibble(exp_m = exp_m_ts)
-exp_m_date_tibble$date <- format(seq(as.Date("2015-7-01"), as.Date("2025-3-01"), "month"), "%Y-%m")
-
-tibble_data <- tibble_data |>
-     left_join(exp_m_date_tibble)
     
 
 
@@ -122,6 +115,7 @@ ts_objects <- list(
     ir_ts = ir_ts,
     hicp_ts = hicp_ts,
     exp_h_ts = ie_h_ts,
+    exp_m_ts = exp_m_ts,
     unemp_ts = unemp_ts
 )
 
@@ -134,5 +128,11 @@ save(
 save(
     tibble_data,
     file = "data/tibble_data.RData"
+)
+
+
+save(
+    exp_m_ts,
+    file = "data/exp_m_data.RData"
 )
 

@@ -460,7 +460,7 @@ print(adf_results_p)
 print(pp_results_p)
 
 # multikolinearita
-map(res_var_model_h$varresult, vif)
+map(res_var_model_p$varresult, vif)
 
 
 # NOTE: HAC robustní odchylka pro FG promenne v rovnici exp_p hlavne pro IRF
