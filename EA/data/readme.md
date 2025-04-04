@@ -15,3 +15,6 @@ unemp - fixed composition EA20 - procento - sezonne ocisteno - Age 15 to 74 - ht
 ilb - procento - !DAILY - 10y maturity - https://www.deutsche-finanzagentur.de/en/federal-securities/factsheet/isin/DE0001030567?cHash=cf7ba86e12345f6815d828d07453f348
 
 bund10 - procento - !DAILY - 10y maturity - https://www.deutsche-finanzagentur.de/en/federal-securities/factsheet/isin/DE0001102382?cHash=21e08bb25742e67301bca6b3e651e8a5
+
+fg - https://www.ecb.europa.eu/press/press_conference/monetary-policy-statement/html/index.en.html
+- nebo https://www.ecb.europa.eu/press/govcdec/mopo/html/index.en.html
