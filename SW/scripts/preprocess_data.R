@@ -28,6 +28,7 @@ gdp_ts <- ts(as.numeric(gdp[[3]][49:length(gdp[[3]])]), start = c(1993, 1), end 
 # WEEKLY
 # prevod na stocks (posledni hodnota v mesici)
 securities_monthly <- b_sheet |>
+    arrange(date) |>
     mutate(month = floor_date(as_date(date), "month")) |>
     group_by(month) |>
     filter(date == max(date))

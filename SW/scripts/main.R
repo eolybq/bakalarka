@@ -54,7 +54,7 @@ variables <- tibble_data |>
     ) |>
     drop_na()
 without_exp_m <- check_stationarity(variables)
-# exp_m
+# exp_m a exp_p
 with_exp_m <- check_stationarity(tibble(exp_m = exp_m_ts))
 with_exp_p <- check_stationarity(tibble(exp_p = exp_p_ts))
 
@@ -84,17 +84,21 @@ exp_m_ts |>
     acf_pacf(40)
 
 
+# NOTE: konstanta pricitana k securities - vyhnuti se problemu s log()
+c <- 0.00001
+
 trans_tdata <- tibble_data |>
     mutate(
-        securities = final(seas(securities)),
-        securities_scl = final(seas(securities_scl)),
+        # securities = final(seas(securities)), # NOTE: nefunguje, asi hodne 0 v datech
+        # securities_scl = final(seas(securities_scl)), # NOTE: nefunguje, asi hodne 0 v datech
         # ir = final(seas(ir)), # NOTE: nefunguje ale asi neni sezonost takze idk
         cpi = final(seas(cpi)),
+        ppi = final(seas(ppi)),
         exp_h = final(seas(exp_h))
     ) |>
     mutate(
-        securities = c(NA, NA, diff(diff(log(securities)) * 100)),
-        securities_scl = c(NA, NA, diff(diff(log(securities_scl)) * 100)),
+        securities = c(NA, NA, diff(diff(log(securities + c)) * 100)),
+        securities_scl = c(NA, NA, diff(diff(log(securities_scl + c)) * 100)),
         ppi = c(NA, NA, diff(diff(log(ppi)) * 100)),
         cpi = c(NA, NA, diff(diff(log(cpi)) * 100)),
         ir = c(NA, diff(ir)),
@@ -104,23 +108,31 @@ trans_tdata <- tibble_data |>
 # Omezení na před Covid cpi
 # filter(date < "2022-01")
 
+# NOTE: transformace exp_p
+exp_p_seas = final(seas(exp_p_ts))
+exp_p = diff(exp_p_seas)
+
 # NOTE: transformace exp_m
 exp_m_seas = final(seas(exp_m_ts))
 exp_m = diff(exp_m_seas)
 
 
-# delsi vzorek (bez exp_m)
+# delsi vzorek (bez exp_m a exp_p)
 variables <- trans_tdata |>
     dplyr::select(
         -date,
     ) |>
     drop_na()
 without_exp_m <- check_stationarity(variables)
-# exp_m
+# exp_m a exp_p
 with_exp_m <- check_stationarity(tibble(exp_m = exp_m))
+with_exp_p <- check_stationarity(tibble(exp_p = exp_p))
 
-rbind(without_exp_m, with_exp_m)
+rbind(without_exp_m, with_exp_p, with_exp_m)
+
 acf_pacf(trans_tdata, 40)
+exp_p |>
+    acf_pacf(40)
 exp_m |>
     acf_pacf(40)
 
@@ -162,47 +174,26 @@ lag_optimal_h
 # odhad
 var_model_h <- trans_tdata_h |>
     vars::VAR(
-        p = 3,
+        p = 5,
         type = "const",
     )
 
 
-var_count_h <- 5
-max_var_lag_h <- 3
-
-
-# NOTE: restrikce: FG se objevuje pouze v rovnici pro exp
-res_matrix_h <- rbind(
-    # eq securities_scl
-    c(rep(1, var_count_h * max_var_lag_h + 1), 0),
-    # eq ppi
-    c(rep(1, var_count_h * max_var_lag_h + 1), 0),
-    # eq ir
-    c(rep(1, var_count_h * max_var_lag_h + 1), 0),
-    # eq cpi
-    c(rep(1, var_count_h * max_var_lag_h + 1), 0),
-    # eq oce
-    c(rep(1, var_count_h * max_var_lag_h + 1), 1)
-)
-
-res_var_model_h <- restrict(var_model_h, method = "manual", resmat = res_matrix_h)
-
-
-summary(res_var_model_h)
+summary(var_model_h)
 
 
 # prepoklady
 
 # diagnostika modelu
-residuals_h <- residuals(res_var_model_h)
+residuals_h <- residuals(var_model_h)
 
 as_tibble(residuals_h) |>
     add_column(new_col = NA, .before = 1) |>
     acf_pacf(20)
 
-serial.test(res_var_model_h) # Autokorelace
-arch.test(res_var_model_h) # Heteroskedasticita
-normality.test(res_var_model_h)
+serial.test(var_model_h) # Autokorelace
+arch.test(var_model_h) # Heteroskedasticita
+normality.test(var_model_h)
 
 # KPSS test
 kpss_results_h <- apply(residuals_h, 2, kpss.test)
@@ -216,13 +207,13 @@ print(adf_results_h)
 print(pp_results_h)
 
 # multikolinearita
-map(res_var_model_h$varresult, ~vif(.))
+map(var_model_h$varresult, ~vif(.))
 
 
 
 
 akt_exp_h_irf <- irf(
-    res_var_model_h,
+    var_model_h,
     
     # NOTE: swap za securities kdyztak
     impulse = "securities_scl",
@@ -236,7 +227,7 @@ plot(akt_exp_h_irf)
 
 
 # Granger causality
-# NOTE: swap za fx_res kdyztak
+# NOTE: swap za securities kdyztak
 causality(res_var_model_h, cause = "securities_scl")
 
 
@@ -248,10 +239,109 @@ plot(v_decomp_h)
 
 
 
+# PROFESIONALOVE ==============
+
+# Pripojeni exp_p - pridani NA
+exp_p_date_tibble <- tibble(exp_p = exp_p)
+exp_p_date_tibble$date <- format(seq(as.Date("2010-2-01"), as.Date("2024-9-01"), "month"), "%Y-%m")
+
+trans_tdata_p <- trans_tdata |>
+    left_join(exp_p_date_tibble) |>
+    dplyr::select(
+        -date,
+        -exp_h,
+        
+        # NOTE: swap za securities
+        -securities,
+        # -securities_scl,
+    ) |>
+    drop_na()
+
+# vyber zpozdeni
+lag_optimal_p <- trans_tdata_p |>
+    VARselect(
+        lag.max = 20,
+        type = "const",
+    )
+lag_optimal_p
+
+# odhad
+var_model_p <- trans_tdata_p |>
+    vars::VAR(
+        p = 2,
+        type = "const",
+    )
+
+
+summary(var_model_p)
+
+
+# prepoklady
+
+# diagnostika modelu
+residuals_p <- residuals(var_model_p)
+
+as_tibble(residuals_p) |>
+    add_column(new_col = NA, .before = 1) |>
+    acf_pacf(20)
+
+serial.test(var_model_p) # Autokorelace
+arch.test(var_model_p) # Heteroskedasticita
+normality.test(var_model_p)
+
+# KPSS test
+kpss_results_p <- apply(residuals_p, 2, kpss.test)
+# ADF test
+adf_results_p <- apply(residuals_p, 2, adf.test)
+# PP test
+pp_results_p <- apply(residuals_p, 2, pp.test)
+# Print the results
+print(kpss_results_p)
+print(adf_results_p)
+print(pp_results_p)
+
+# multikolinearita
+map(var_model_p$varresult, vif)
+
+
+
+
+akt_exp_p_irf <- irf(
+    var_model_p,
+    
+    # NOTE: swap za securities kdyztak
+    impulse = "securities_scl",
+    response = "exp_p",
+    n.ahead = 20,
+    ortho = FALSE,
+    runs = 1000
+)
+
+plot(akt_exp_p_irf)
+
+
+# Granger causality
+# NOTE: swap za securities kdyztak
+causality(var_model_p, cause = "securities_scl")
+
+# FIX: zase hazi chybu asi - exogenni
+# causality(res_var_model_p, cause = "fg_z")
+# causality(res_var_model_p, cause = "fg_u")
+
+
+# Variancni dekompozice - jak moc je promenna ovlivnena sokem ostatnich promennych
+v_decomp_p <- fevd(var_model_p, n.ahead = 20)
+plot(v_decomp_p)
+
+
+
+
+
+
 # TRH ==============
 # Pripojeni exp_m - pridani NA
 exp_m_date_tibble <- tibble(exp_m = exp_m)
-exp_m_date_tibble$date <- format(seq(as.Date("2015-8-01"), as.Date("2025-3-01"), "month"), "%Y-%m")
+exp_m_date_tibble$date <- format(seq(as.Date("2011-2-01"), as.Date("2023-4-01"), "month"), "%Y-%m")
 
 trans_tdata_m <- trans_tdata |>
     left_join(exp_m_date_tibble) |>
@@ -277,47 +367,26 @@ lag_optimal_m
 # odhad
 var_model_m <- trans_tdata_m |>
     vars::VAR(
-        p = 1,
+        p = 2,
         type = "const",
     )
 
 
-var_count_m <- 5
-max_var_lag_m <- 1
-
-
-# NOTE: restrikce: FG se objevuje pouze v rovnici pro exp
-res_matrix_m <- rbind(
-    # eq securities_scl
-    c(rep(1, var_count_m * max_var_lag_m + 1), 0),
-    # eq ppi
-    c(rep(1, var_count_m * max_var_lag_m + 1), 0),
-    # eq ir
-    c(rep(1, var_count_m * max_var_lag_m + 1), 0),
-    # eq cpi
-    c(rep(1, var_count_m * max_var_lag_m + 1), 0),
-    # eq oce
-    c(rep(1, var_count_m * max_var_lag_m + 1), 1)
-)
-
-res_var_model_m <- restrict(var_model_m, method = "manual", resmat = res_matrix_m)
-
-
-summary(res_var_model_m)
+summary(var_model_m)
 
 
 # prepoklady
 
 # diagnostika modelu
-residuals_m <- residuals(res_var_model_m)
+residuals_m <- residuals(var_model_m)
 
 as_tibble(residuals_m) |>
     add_column(new_col = NA, .before = 1) |>
     acf_pacf(20)
 
-serial.test(res_var_model_m) # Autokorelace
-arch.test(res_var_model_m) # Heteroskedasticita
-normality.test(res_var_model_m)
+serial.test(var_model_m) # Autokorelace
+arch.test(var_model_m) # Heteroskedasticita
+normality.test(var_model_m)
 
 # KPSS test
 kpss_results_m <- apply(residuals_m, 2, kpss.test)
@@ -331,14 +400,14 @@ print(adf_results_m)
 print(pp_results_m)
 
 # multikolinearita
-map(res_var_model_m$varresult, vif)
+map(var_model_m$varresult, vif)
 
 
 
 
 
 akt_exp_m_irf <- irf(
-    res_var_model_m,
+    var_model_m,
     
     # NOTE: swap za securities kdyztak
     impulse = "securities_scl",
@@ -353,10 +422,10 @@ plot(akt_exp_m_irf)
 
 # Granger causality
 # NOTE: swap za aktiva kdyztak
-causality(res_var_model_m, cause = "securities_scl")
+causality(var_model_m, cause = "securities_scl")
 
 
 # Variancni dekompozice - jak moc je promenna ovlivnena sokem ostatnich promennych
-v_decomp_m <- fevd(res_var_model_m, n.ahead = 20)
+v_decomp_m <- fevd(var_model_m, n.ahead = 20)
 plot(v_decomp_m)
 
