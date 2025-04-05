@@ -10,7 +10,6 @@ library(seasonal)
 
 
 load("data/tibble_data.RData")
-load("data/exp_p_data.RData")
 load("data/exp_m_data.RData")
 
 
@@ -56,9 +55,8 @@ variables <- tibble_data |>
 without_exp_m <- check_stationarity(variables)
 # exp_m a exp_p
 with_exp_m <- check_stationarity(tibble(exp_m = exp_m_ts))
-with_exp_p <- check_stationarity(tibble(exp_p = exp_p_ts))
 
-rbind(without_exp_m, with_exp_p, with_exp_m)
+rbind(without_exp_m, with_exp_m)
 
 
 
@@ -78,8 +76,6 @@ acf_pacf <- function(data, maxlag) {
 }
 
 acf_pacf(tibble_data, 40)
-exp_p_ts |>
-    acf_pacf(40)
 exp_m_ts |>
     acf_pacf(40)
 
@@ -94,7 +90,8 @@ trans_tdata <- tibble_data |>
         # ir = final(seas(ir)), # NOTE: nefunguje ale asi neni sezonost takze idk
         cpi = final(seas(cpi)),
         ppi = final(seas(ppi)),
-        exp_h = final(seas(exp_h))
+        exp_h = final(seas(exp_h)),
+        exp_p = final(seas(exp_p))
     ) |>
     mutate(
         securities = c(NA, NA, diff(diff(log(securities + c)) * 100)),
@@ -103,14 +100,11 @@ trans_tdata <- tibble_data |>
         cpi = c(NA, NA, diff(diff(log(cpi)) * 100)),
         ir = c(NA, diff(ir)),
         exp_h = c(NA, diff(exp_h)),
+        exp_p = c(NA, diff(exp_p))
     ) |>
     drop_na()
 # Omezení na před Covid cpi
 # filter(date < "2022-01")
-
-# NOTE: transformace exp_p
-exp_p_seas = final(seas(exp_p_ts))
-exp_p = diff(exp_p_seas)
 
 # NOTE: transformace exp_m
 exp_m_seas = final(seas(exp_m_ts))
@@ -126,13 +120,10 @@ variables <- trans_tdata |>
 without_exp_m <- check_stationarity(variables)
 # exp_m a exp_p
 with_exp_m <- check_stationarity(tibble(exp_m = exp_m))
-with_exp_p <- check_stationarity(tibble(exp_p = exp_p))
 
-rbind(without_exp_m, with_exp_p, with_exp_m)
+rbind(without_exp_m, with_exp_m)
 
 acf_pacf(trans_tdata, 40)
-exp_p |>
-    acf_pacf(40)
 exp_m |>
     acf_pacf(40)
 
@@ -156,6 +147,7 @@ trans_tdata |>
 trans_tdata_h <- trans_tdata |>
     dplyr::select(
         -date,
+        -exp_p,
         
         
         # NOTE swap securities
@@ -174,7 +166,7 @@ lag_optimal_h
 # odhad
 var_model_h <- trans_tdata_h |>
     vars::VAR(
-        p = 5,
+        p = 2,
         type = "const",
     )
 
@@ -242,11 +234,8 @@ plot(v_decomp_h)
 # PROFESIONALOVE ==============
 
 # Pripojeni exp_p - pridani NA
-exp_p_date_tibble <- tibble(exp_p = exp_p)
-exp_p_date_tibble$date <- format(seq(as.Date("2010-2-01"), as.Date("2024-9-01"), "month"), "%Y-%m")
 
 trans_tdata_p <- trans_tdata |>
-    left_join(exp_p_date_tibble) |>
     dplyr::select(
         -date,
         -exp_h,
@@ -348,6 +337,7 @@ trans_tdata_m <- trans_tdata |>
     dplyr::select(
         -date,
         -exp_h,
+        -exp_p,
         
         # NOTE swap securities
         -securities,

@@ -50,19 +50,19 @@ exp_m_monthl <- bei |>
     filter(date == max(date))
 exp_m_ts <- ts(exp_m_monthl[[2]], start = c(2011, 1), end = c(2023, 4), frequency = 12)
 
-exp_p_ts <- ie_p_ts
 
 
 
 
 tibble_data <- tibble(
-    "date" = format(seq(as.Date("2001-12-01"), as.Date("2024-10-01"), "month"), "%Y-%m"),
-    "securities" =  window(securities_ts, start = c(2001, 12), end = c(2024, 10)),
-    "securities_scl" = window(scl_securities, start = c(2001, 12), end = c(2024, 10)),
-    "ppi" = window(ppi_ts, start = c(2001, 12), end = c(2024, 10)),
-    "ir" = window(ir_ts, start = c(2001, 12), end = c(2024, 10)),
-    "cpi" = window(cpi_ts, start = c(2001, 12), end = c(2024, 10)),
-    "exp_h" = window(ie_h_ts, start = c(2001, 12), end = c(2024, 10)),
+    "date" = format(seq(as.Date("2010-01-01"), as.Date("2024-09-01"), "month"), "%Y-%m"),
+    "securities" =  window(securities_ts, start = c(2010, 1), end = c(2024, 9)),
+    "securities_scl" = window(scl_securities, start = c(2010, 1), end = c(2024, 9)),
+    "ppi" = window(ppi_ts, start = c(2010, 1), end = c(2024, 9)),
+    "ir" = window(ir_ts, start = c(2010, 1), end = c(2024, 9)),
+    "cpi" = window(cpi_ts, start = c(2010, 1), end = c(2024, 9)),
+    "exp_h" = window(ie_h_ts, start = c(2010, 1), end = c(2024, 9)),
+    "exp_p" = window(ie_p_ts, start = c(2010, 1), end = c(2024, 9)),
 )
 
 
@@ -91,12 +91,6 @@ save(
 )
 
 save(
-    exp_p_ts,
-    file = "data/exp_p_data.RData"
-)
-
-save(
     exp_m_ts,
     file = "data/exp_m_data.RData"
 )
-

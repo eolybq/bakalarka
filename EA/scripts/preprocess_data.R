@@ -18,7 +18,7 @@ gdp <- read_csv("data/rawdata/gdp.csv")
 
 # doplnění implicitních chybějících hodnot ve FG a rozdeleni na uvoneni a zprisneni
 fg_uncomplete$time <- format(fg_uncomplete$time, "%Y-%m")
-fg_complete <- tibble("time" = seq(as.Date("1999-12-01"), as.Date("2023-9-01"), "month")) |>
+fg_complete <- tibble("time" = seq(as.Date("1999-1-01"), as.Date("2023-9-01"), "month")) |>
     mutate(
         time = format(time, "%Y-%m")
     )
@@ -41,7 +41,7 @@ unemp_ts <- ts(unemp[[3]], start = c(2000, 1), end = c(2025, 1), frequency = 12)
 ipi_ts <- ts(ipi[[3]], start = c(1991, 1), end = c(2025, 1), frequency = 12)
 securities_ts <- ts(securities[[3]], start = c(1997, 9), end = c(2025, 2), frequency = 12)
 b_sheet_ts <- ts(b_sheet[[3]], start = c(1997, 9), end = c(2025, 2), frequency = 12)
-fg_down_ts <- ts(fg_down[[2]], start = c(1999, 12), end = c(2023, 9), frequency = 12)
+fg_down_ts <- ts(fg_down[[2]], start = c(1999, 1), end = c(2023, 9), frequency = 12)
 ie_h_ts <- ts(ie_h[[2]], start = c(1997, 1), end = c(2023, 9), frequency = 12)
 gdp_ts <- ts(gdp[[3]], start = c(1995, 1), end = c(2024, 4), frequency = 4)
 
@@ -83,14 +83,14 @@ scl_b_sheet <- window(b_sheet_ts, start = c(1997, 10), end = c(2024, 12)) / gdp_
 
 
 tibble_data <- tibble(
-    "date" = format(seq(as.Date("1999-12-01"), as.Date("2023-9-01"), "month"), "%Y-%m"),
-    "securities" =  window(securities_ts, start = c(1999, 12), end = c(2023, 9)),
-    "securities_scl" = window(scl_securities, start = c(1999, 12), end = c(2023, 9)),
-    "fg_u" = window(fg_down_ts, start = c(1999, 12), end = c(2023, 9)),
-    "ipi" = window(ipi_ts, start = c(1999, 12), end = c(2023, 9)),
-    "ir" = window(ir_ts, start = c(1999, 12), end = c(2023, 9)),
-    "hicp" = window(hicp_ts, start = c(1999, 12), end = c(2023, 9)),
-    "exp_h" = window(ie_h_ts, start = c(1999, 12), end = c(2023, 9)),
+    "date" = format(seq(as.Date("1999-1-01"), as.Date("2023-9-01"), "month"), "%Y-%m"),
+    "securities" =  window(securities_ts, start = c(1999, 1), end = c(2023, 9)),
+    "securities_scl" = window(scl_securities, start = c(1999, 1), end = c(2023, 9)),
+    "fg_u" = window(fg_down_ts, start = c(1999, 1), end = c(2023, 9)),
+    "ipi" = window(ipi_ts, start = c(1999, 1), end = c(2023, 9)),
+    "ir" = window(ir_ts, start = c(1999, 1), end = c(2023, 9)),
+    "hicp" = window(hicp_ts, start = c(1999, 1), end = c(2023, 9)),
+    "exp_h" = window(ie_h_ts, start = c(1999, 1), end = c(2023, 9)),
 )
     
 

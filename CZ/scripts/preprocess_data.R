@@ -42,8 +42,8 @@ cpi_ts <- ts(c(cpi1[[2]], cpi2[[2]]), start = c(1995, 1), frequency = 12)
 fx_res_ts <- ts(b_sheet[[13]][nrow(b_sheet):1], start = c(2002, 9), frequency = 12) # nolint
 fg_down_ts <- ts(fg_down[[2]], start = c(2002, 10), end = c(2024, 11), frequency = 12)
 fg_up_ts <- ts(fg_up[[2]], start = c(2002, 10), end = c(2024, 11), frequency = 12)
-ie_p_ts <- ts(ie_p[[2]], start = c(1999, 5), frequency = 12)
-ie_h_ts <- ts(ie_h[[2]], start = c(2001, 1), frequency = 12)
+ie_p_ts <- ts(ie_p[[2]], start = c(1999, 5), end = c(2024, 7), frequency = 12)
+ie_h_ts <- ts(ie_h[[2]], start = c(2001, 1), end = c(2024, 9), frequency = 12)
 ir_ts <- ts(ir[[2]][nrow(ir):1], start = c(1995, 12), frequency = 12) # nolint: seq_linter.
 unemp_ts <- ts(unlist(unemp[unemp[[1]] == "Celkem ČR", ][-1]), start = c(2005, 1), frequency = 12)
 ipp_ts <- ts(ipp[[4]][nrow(ipp):1], start = c(2000, 1), end = c(2025, 1), frequency = 12)
