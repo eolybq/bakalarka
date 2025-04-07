@@ -6,7 +6,7 @@ ppi - bazický index - https://www.statistikdatabasen.scb.se/pxweb/en/ssd/START_
 
 ir - procento - policy rate - konec mesice i prumer mesice - https://www.riksbank.se/en-gb/statistics/interest-rates-and-exchange-rates/search-interest-rates-and-exchange-rates/?s=g2-SECBREPOEFF&a=M&from=1995-01-02&to=2025-03-31&c=Ultimo&fs=3#result-section
 
-bs_sweden - milion sek - !WEEKLY - https://www.riksbank.se/en-gb/statistics/riksbanks-balance-sheet/the-riksbanks-assets-and-liabilities-the-weekly-report/
+b_sheet - milion sek - !WEEKLY - https://www.riksbank.se/en-gb/statistics/riksbanks-balance-sheet/the-riksbanks-assets-and-liabilities-the-weekly-report/
 
 unemp - procento - sezonne ocisteno - 15y 74y - https://www.scb.se/en/finding-statistics/statistics-by-subject-area/labour-market/labour-force-supply/labour-force-surveys-lfs/pong/tables-and-graphs/seasonally-adjusted-data/time-series-on-the-unemployment-rate-persons-15-74-years/
 

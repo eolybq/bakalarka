@@ -7,6 +7,8 @@ library(tidyverse)
 library(urca)
 library(vars)
 library(seasonal)
+library(gridExtra)
+library(grid)
 
 
 load("data/tibble_data.RData")
@@ -80,25 +82,23 @@ exp_m_ts |>
     acf_pacf(40)
 
 
-# NOTE: konstanta pricitana k securities - vyhnuti se problemu s log()
+# NOTE: konstanta pricitana k sec - vyhnuti se problemu s log()
 c <- 0.00001
 
 trans_tdata <- tibble_data |>
     mutate(
-        # securities = final(seas(securities)), # NOTE: nefunguje, asi hodne 0 v datech
-        # securities_scl = final(seas(securities_scl)), # NOTE: nefunguje, asi hodne 0 v datech
+        # sec = final(seas(sec)), # NOTE: nefunguje, asi hodne 0 v datech
         # ir = final(seas(ir)), # NOTE: nefunguje ale asi neni sezonost takze idk
         cpi = final(seas(cpi)),
-        ppi = final(seas(ppi)),
+        ipi = final(seas(ipi)),
         exp_h = final(seas(exp_h)),
         exp_p = final(seas(exp_p))
     ) |>
     mutate(
-        securities = c(NA, NA, diff(diff(log(securities + c)) * 100)),
-        securities_scl = c(NA, NA, diff(diff(log(securities_scl + c)) * 100)),
-        ppi = c(NA, NA, diff(diff(log(ppi)) * 100)),
+        sec = c(NA, NA, diff(diff(log(sec + c)) * 100)),
+        ipi = c(NA, NA, diff(diff(log(ipi)) * 100)),
         cpi = c(NA, NA, diff(diff(log(cpi)) * 100)),
-        ir = c(NA, diff(ir)),
+        ir = c(NA, NA, diff(diff(ir))),
         exp_h = c(NA, diff(exp_h)),
         exp_p = c(NA, diff(exp_p))
     ) |>
@@ -130,7 +130,7 @@ exp_m |>
 # Graf všech proměnných v jednom grafu
 trans_tdata |>
     dplyr::select(
-        -securities,
+        -sec,
     ) |>
     pivot_longer(cols = -date) |>
     ggplot(aes(x = date, y = value, color = name, group = name)) +
@@ -148,11 +148,6 @@ trans_tdata_h <- trans_tdata |>
     dplyr::select(
         -date,
         -exp_p,
-        
-        
-        # NOTE swap securities
-        -securities,
-        # -securities_scl
     )
 
 # vyber zpozdeni
@@ -199,32 +194,46 @@ print(adf_results_h)
 print(pp_results_h)
 
 # multikolinearita
-map(var_model_h$varresult, ~vif(.))
+# map(var_model_h$varresult, ~vif(.))
 
 
 
 
 akt_exp_h_irf <- irf(
     var_model_h,
-    
-    # NOTE: swap za securities kdyztak
-    impulse = "securities_scl",
+    impulse = "sec",
     response = "exp_h",
     n.ahead = 20,
     ortho = FALSE,
     runs = 1000
 )
 
-plot(akt_exp_h_irf)
+horizons_h <- 0:(nrow(akt_exp_h_irf$irf$sec) - 1)
+
+irf_df_h <- data.frame(
+    horizon = horizons_h,
+    response = akt_exp_h_irf$irf$sec[ , "exp_h"],
+    lower = akt_exp_h_irf$Lower$sec[ , "exp_h"],
+    upper = akt_exp_h_irf$Upper$sec[ , "exp_h"]
+)
+impulse_aktiva_h <- ggplot(irf_df_h, aes(x = horizon, y = response)) +
+    geom_line(color = "black", linewidth = 1.2) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    theme_minimal() +
+    labs(
+        x = "Časový horizont",
+        y = "EXP_H"
+    )
+
+
 
 
 # Granger causality
-# NOTE: swap za securities kdyztak
-causality(res_var_model_h, cause = "securities_scl")
+causality(var_model_h, cause = "sec")
 
 
 # Variancni dekompozice - jak moc je promenna ovlivnena sokem ostatnich promennych
-v_decomp_h <- fevd(res_var_model_h, n.ahead = 20)
+v_decomp_h <- fevd(var_model_h, n.ahead = 20)
 plot(v_decomp_h)
 
 
@@ -239,10 +248,6 @@ trans_tdata_p <- trans_tdata |>
     dplyr::select(
         -date,
         -exp_h,
-        
-        # NOTE: swap za securities
-        -securities,
-        # -securities_scl,
     ) |>
     drop_na()
 
@@ -290,28 +295,42 @@ print(adf_results_p)
 print(pp_results_p)
 
 # multikolinearita
-map(var_model_p$varresult, vif)
+# map(var_model_p$varresult, vif)
 
 
 
 
 akt_exp_p_irf <- irf(
     var_model_p,
-    
-    # NOTE: swap za securities kdyztak
-    impulse = "securities_scl",
+    impulse = "sec",
     response = "exp_p",
     n.ahead = 20,
     ortho = FALSE,
     runs = 1000
 )
 
-plot(akt_exp_p_irf)
+horizons_p <- 0:(nrow(akt_exp_p_irf$irf$sec) - 1)
+
+irf_df_p <- data.frame(
+    horizon = horizons_p,
+    response = akt_exp_p_irf$irf$sec[ , "exp_p"],
+    lower = akt_exp_p_irf$Lower$sec[ , "exp_p"],
+    upper = akt_exp_p_irf$Upper$sec[ , "exp_p"]
+)
+impulse_aktiva_p <- ggplot(irf_df_p, aes(x = horizon, y = response)) +
+    geom_line(color = "black", linewidth = 1.2) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    theme_minimal() +
+    labs(
+        x = "Časový horizont",
+        y = "EXP_P"
+    )
+
+
 
 
 # Granger causality
-# NOTE: swap za securities kdyztak
-causality(var_model_p, cause = "securities_scl")
+causality(var_model_p, cause = "sec")
 
 # FIX: zase hazi chybu asi - exogenni
 # causality(res_var_model_p, cause = "fg_z")
@@ -337,11 +356,7 @@ trans_tdata_m <- trans_tdata |>
     dplyr::select(
         -date,
         -exp_h,
-        -exp_p,
-        
-        # NOTE swap securities
-        -securities,
-        # -securities_scl
+        -exp_p
     ) |>
     drop_na()
 
@@ -390,7 +405,7 @@ print(adf_results_m)
 print(pp_results_m)
 
 # multikolinearita
-map(var_model_m$varresult, vif)
+# map(var_model_m$varresult, vif)
 
 
 
@@ -398,24 +413,65 @@ map(var_model_m$varresult, vif)
 
 akt_exp_m_irf <- irf(
     var_model_m,
-    
-    # NOTE: swap za securities kdyztak
-    impulse = "securities_scl",
+    impulse = "sec",
     response = "exp_m",
     n.ahead = 20,
     ortho = FALSE,
     runs = 1000
 )
+horizons_m <- 0:(nrow(akt_exp_m_irf$irf$sec) - 1)
 
-plot(akt_exp_m_irf)
+irf_df_m <- data.frame(
+    horizon = horizons_m,
+    response = akt_exp_m_irf$irf$sec[ , "exp_m"],
+    lower = akt_exp_m_irf$Lower$sec[ , "exp_m"],
+    upper = akt_exp_m_irf$Upper$sec[ , "exp_m"]
+)
+impulse_aktiva_m <- ggplot(irf_df_m, aes(x = horizon, y = response)) +
+    geom_line(color = "black", linewidth = 1.2) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    theme_minimal() +
+    labs(
+        x = "Časový horizont",
+        y = "EXP_M"
+    )
+
+
+
 
 
 # Granger causality
-# NOTE: swap za aktiva kdyztak
-causality(var_model_m, cause = "securities_scl")
+causality(var_model_m, cause = "sec")
 
 
 # Variancni dekompozice - jak moc je promenna ovlivnena sokem ostatnich promennych
 v_decomp_m <- fevd(var_model_m, n.ahead = 20)
 plot(v_decomp_m)
+
+
+
+# NOTE: graf vsech irf
+col1_label <- textGrob("Domácnosti", gp = gpar(fontsize = 14, fontface = "bold"))
+col2_label <- textGrob("Profesionálové", gp = gpar(fontsize = 14, fontface = "bold"))
+col3_label <- textGrob("Trh", gp = gpar(fontsize = 14, fontface = "bold"))
+
+row1_label <- textGrob("SEC", rot = 90, gp = gpar(fontsize = 14, fontface = "bold"))
+
+grid.arrange(
+    # Horní řádek s popisky sloupců – první buňka prázdná
+    arrangeGrob(
+        textGrob(""), col1_label, col2_label, col3_label,
+        ncol = 4,
+        widths = c(1, 3, 3, 3)
+    ),
+    # První řádek grafů s řádkovým popiskem vlevo
+    arrangeGrob(
+        row1_label, impulse_aktiva_h, impulse_aktiva_p, impulse_aktiva_m,
+        ncol = 4,
+        widths = c(0.3, 3, 3, 3)
+    ),
+    nrow = 2,
+    heights = c(0.3, 3)
+)
+
 

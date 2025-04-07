@@ -7,6 +7,8 @@ library(tidyverse)
 library(urca)
 library(vars)
 library(seasonal)
+library(gridExtra)
+library(grid)
 
 
 load("data/tibble_data.RData")
@@ -83,18 +85,16 @@ exp_m_ts |>
 
 trans_tdata <- tibble_data |>
     mutate(
-        securities = final(seas(securities)),
-        securities_scl = final(seas(securities_scl)),
+        sec = final(seas(sec)),
         # ir = final(seas(ir)), # NOTE: nefunguje ale asi neni sezonost takze idk
         hicp = final(seas(hicp)),
         exp_h = final(seas(exp_h))
     ) |>
     mutate(
-        securities = c(NA, NA, diff(diff(log(securities)) * 100)),
-        securities_scl = c(NA, NA, diff(diff(log(securities_scl)) * 100)),
+        sec = c(NA, NA, diff(diff(log(sec)) * 100)),
         ipi = c(NA, NA, diff(diff(log(ipi)) * 100)),
         hicp = c(NA, NA, diff(diff(log(hicp)) * 100)),
-        ir = c(NA, diff(ir)),
+        ir = c(NA, NA, diff(diff(ir))),
         exp_h = c(NA, diff(exp_h)),
         
         # NOTE: Zpozdeni FG
@@ -128,7 +128,7 @@ exp_m |>
 # Graf všech proměnných v jednom grafu
 trans_tdata |>
     dplyr::select(
-        -securities,
+        -sec,
         -fg_u,
     ) |>
     pivot_longer(cols = -date) |>
@@ -146,11 +146,6 @@ trans_tdata |>
 trans_tdata_h <- trans_tdata |>
     dplyr::select(
         -date,
-        
-        
-        # NOTE swap securities
-        -securities,
-        # -securities_scl
     )
 
 # vyber zpozdeni
@@ -187,7 +182,7 @@ max_var_lag_h <- 3
 
 # NOTE: restrikce: FG se objevuje pouze v rovnici pro exp
 res_matrix_h <- rbind(
-    # eq securities_scl
+    # eq sec
     c(rep(1, var_count_h * max_var_lag_h + 1), 0),
     # eq ipi
     c(rep(1, var_count_h * max_var_lag_h + 1), 0),
@@ -257,7 +252,7 @@ exogen_irf_h <- function(fg_type, fg_sd, var_count, max_var_lag) {
     
     for (sim in 1:irf_runs) {
         irf_exog_fg <- tibble(
-            "securities_scl" = 0,
+            "sec" = 0,
             "ipi" = 0,
             "ir" = 0,
             "hicp" = 0,
@@ -316,14 +311,13 @@ fg_u_exp_h_irf_results <- exogen_irf_h(fg_u_coef_h, fg_sd = hac_sd_fg_u_h, var_c
 
 
 # Plot s intervaly spolehlivosti
-ggplot(fg_u_exp_h_irf_results[max_var_lag_h:nrow(fg_u_exp_h_irf_results), ], aes(x = time, y = exp_h)) +
-    geom_line(color = "steelblue", linewidth = 1.2) +
+impulse_fg_u_h <- ggplot(fg_u_exp_h_irf_results[max_var_lag_h:nrow(fg_u_exp_h_irf_results), ], aes(x = time - max_var_lag_h, y = exp_h)) +
+    geom_line(color = "black", linewidth = 1.2) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
     theme_minimal() +
     labs(
-        title = "Impulzní odezva v exp_h na jednotkový šok v uvolnění FG (s intervaly spolehlivosti)",
         x = "Časový horizont",
-        y = "exp_h"
+        y = "EXP_H"
     )
 
 
@@ -332,21 +326,34 @@ ggplot(fg_u_exp_h_irf_results[max_var_lag_h:nrow(fg_u_exp_h_irf_results), ], aes
 
 akt_exp_h_irf <- irf(
     res_var_model_h,
-    
-    # NOTE: swap za securities kdyztak
-    impulse = "securities_scl",
+    impulse = "sec",
     response = "exp_h",
     n.ahead = 20,
     ortho = FALSE,
     runs = 1000
 )
 
-plot(akt_exp_h_irf)
+horizons_h <- 0:(nrow(akt_exp_h_irf$irf$sec) - 1)
+
+irf_df_h <- data.frame(
+    horizon = horizons_h,
+    response = akt_exp_h_irf$irf$sec[ , "exp_h"],
+    lower = akt_exp_h_irf$Lower$sec[ , "exp_h"],
+    upper = akt_exp_h_irf$Upper$sec[ , "exp_h"]
+)
+impulse_aktiva_h <- ggplot(irf_df_h, aes(x = horizon, y = response)) +
+    geom_line(color = "black", linewidth = 1.2) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    theme_minimal() +
+    labs(
+        x = "Časový horizont",
+        y = "EXP_H"
+    )
+
 
 
 # Granger causality
-# NOTE: swap za fx_res kdyztak
-causality(res_var_model_h, cause = "securities_scl")
+causality(res_var_model_h, cause = "sec")
 
 # FIX: zase hazi chybu asi - exogenni
 # causality(res_var_model_h, cause = "fg_u")
@@ -370,10 +377,6 @@ trans_tdata_m <- trans_tdata |>
     dplyr::select(
         -date,
         -exp_h,
-        
-        # NOTE swap securities
-        -securities,
-        # -securities_scl
     ) |>
     drop_na()
 
@@ -412,7 +415,7 @@ max_var_lag_m <- 1
 
 # NOTE: restrikce: FG se objevuje pouze v rovnici pro exp
 res_matrix_m <- rbind(
-    # eq securities_scl
+    # eq sec
     c(rep(1, var_count_m * max_var_lag_m + 1), 0),
     # eq ipi
     c(rep(1, var_count_m * max_var_lag_m + 1), 0),
@@ -481,7 +484,7 @@ exogen_irf_m <- function(fg_type, fg_sd, var_count, max_var_lag) {
     
     for (sim in 1:irf_runs) {
         irf_exog_fg <- tibble(
-            "securities_scl" = 0,
+            "sec" = 0,
             "ipi" = 0,
             "ir" = 0,
             "cpi" = 0,
@@ -529,14 +532,13 @@ fg_u_exp_m_irf_results <- exogen_irf_m(fg_u_coef_m, fg_sd = hac_sd_fg_u_m, var_c
 
 
 # Plot s intervaly spolehlivosti
-ggplot(fg_u_exp_m_irf_results, aes(x = time, y = exp_m)) +
-    geom_line(color = "steelblue", linewidth = 1.2) +
+impulse_fg_u_m <- ggplot(fg_u_exp_m_irf_results[max_var_lag_m:nrow(fg_u_exp_m_irf_results), ], aes(x = time - max_var_lag_m, y = exp_m)) +
+    geom_line(color = "black", linewidth = 1.2) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
     theme_minimal() +
     labs(
-        title = "Impulzní odezva v exp_m na jednotkový šok v uvolnění FG (s intervaly spolehlivosti)",
         x = "Časový horizont",
-        y = "exp_m"
+        y = "EXP_M"
     )
 
 
@@ -546,21 +548,33 @@ ggplot(fg_u_exp_m_irf_results, aes(x = time, y = exp_m)) +
 
 akt_exp_m_irf <- irf(
     res_var_model_m,
-    
-    # NOTE: swap za securities kdyztak
-    impulse = "securities_scl",
+    impulse = "sec",
     response = "exp_m",
     n.ahead = 20,
     ortho = FALSE,
     runs = 1000
 )
+horizons_m <- 0:(nrow(akt_exp_m_irf$irf$sec) - 1)
 
-plot(akt_exp_m_irf)
+irf_df_m <- data.frame(
+    horizon = horizons_m,
+    response = akt_exp_m_irf$irf$sec[ , "exp_m"],
+    lower = akt_exp_m_irf$Lower$sec[ , "exp_m"],
+    upper = akt_exp_m_irf$Upper$sec[ , "exp_m"]
+)
+impulse_aktiva_m <- ggplot(irf_df_m, aes(x = horizon, y = response)) +
+    geom_line(color = "black", linewidth = 1.2) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    theme_minimal() +
+    labs(
+        x = "Časový horizont",
+        y = "EXP_M"
+    )
+
 
 
 # Granger causality
-# NOTE: swap za aktiva kdyztak
-causality(res_var_model_m, cause = "securities_scl")
+causality(res_var_model_m, cause = "sec")
 
 # FIX: zase hazi chybu asi - exogenni
 # causality(res_var_model_m, cause = "fg_u")
@@ -569,4 +583,35 @@ causality(res_var_model_m, cause = "securities_scl")
 # Variancni dekompozice - jak moc je promenna ovlivnena sokem ostatnich promennych
 v_decomp_m <- fevd(res_var_model_m, n.ahead = 20)
 plot(v_decomp_m)
+
+
+# NOTE: graf vsech irf
+col1_label <- textGrob("Domácnosti", gp = gpar(fontsize = 14, fontface = "bold"))
+col2_label <- textGrob("Trh", gp = gpar(fontsize = 14, fontface = "bold"))
+
+row1_label <- textGrob("SEC", rot = 90, gp = gpar(fontsize = 14, fontface = "bold"))
+row2_label <- textGrob("FG_U", rot = 90, gp = gpar(fontsize = 14, fontface = "bold"))
+
+grid.arrange(
+    # Horní řádek s popisky sloupců – první buňka prázdná
+    arrangeGrob(
+        textGrob(""), col1_label, col2_label,
+        ncol = 3,
+        widths = c(1, 3, 3)
+    ),
+    # První řádek grafů s řádkovým popiskem vlevo
+    arrangeGrob(
+        row1_label, impulse_aktiva_h, impulse_aktiva_m,
+        ncol = 3,
+        widths = c(0.3, 3, 3)
+    ),
+    # Druhý řádek grafů s řádkovým popiskem vlevo
+    arrangeGrob(
+        row2_label, impulse_fg_u_h, impulse_fg_u_m,
+        ncol = 3,
+        widths = c(0.3, 3, 3)
+    ),
+    nrow = 3,
+    heights = c(0.5, 3, 3)
+)
 

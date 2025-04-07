@@ -7,7 +7,7 @@ library(tidyverse)
 cpi1 <- read_excel("data/rawdata/cpi1.xlsx", n_max = 276, skip = 6)
 cpi2 <- read_excel("data/rawdata/cpi2.xlsx", n_max = 82, skip = 6)
 unemp <- read_excel("data/rawdata/unemp.xlsx", range = "A9:HU101")
-ipp <- read_excel("data/rawdata/ipp.xlsx", n_max = 301, skip = 8)
+ipi <- read_excel("data/rawdata/ipp.xlsx", n_max = 301, skip = 8)
 b_sheet <- read_delim("data/rawdata/rozvaha_cnb.csv", delim = ";")
 ir <- read_delim("data/rawdata/repo_konec_m.csv", delim = ";")
 fg_uncomplete <- read_excel("data/rawdata/fg.xlsx")
@@ -46,7 +46,7 @@ ie_p_ts <- ts(ie_p[[2]], start = c(1999, 5), end = c(2024, 7), frequency = 12)
 ie_h_ts <- ts(ie_h[[2]], start = c(2001, 1), end = c(2024, 9), frequency = 12)
 ir_ts <- ts(ir[[2]][nrow(ir):1], start = c(1995, 12), frequency = 12) # nolint: seq_linter.
 unemp_ts <- ts(unlist(unemp[unemp[[1]] == "Celkem ČR", ][-1]), start = c(2005, 1), frequency = 12)
-ipp_ts <- ts(ipp[[4]][nrow(ipp):1], start = c(2000, 1), end = c(2025, 1), frequency = 12)
+ipi_ts <- ts(ipi[[4]][nrow(ipi):1], start = c(2000, 1), end = c(2025, 1), frequency = 12)
 hdp_ts <- ts(arrange(hdp, Období)[[2]], start = c(1995, 1), frequency = 4)
 
 # Skalovana fx_res
@@ -59,11 +59,10 @@ scl_fx_res <- window(fx_res_ts, start = c(2002, 10), end = c(2024, 9)) / hdp_mon
 
 tibble_data <- tibble(
     "date" = format(seq(as.Date("2002-10-01"), as.Date("2024-7-01"), "month"), "%Y-%m"),
-    "fx_res" = window(fx_res_ts, start = c(2002, 10), end = c(2024, 7)),
-    "fx_res_scl" = window(scl_fx_res, start = c(2002, 10), end = c(2024, 7)),
+    "fx_res" = window(scl_fx_res, start = c(2002, 10), end = c(2024, 7)),
     "fg_u" = window(fg_down_ts, start = c(2002, 10), end = c(2024, 7)),
     "fg_z" = window(fg_up_ts, start = c(2002, 10), end = c(2024, 7)),
-    "ipp" = window(ipp_ts, start = c(2002, 10), end = c(2024, 7)),
+    "ipi" = window(ipi_ts, start = c(2002, 10), end = c(2024, 7)),
     "ir" = window(ir_ts, start = c(2002, 10), end = c(2024, 7)),
     "cpi" = window(cpi_ts, start = c(2002, 10), end = c(2024, 7)),
     "exp_h" = window(ie_h_ts, start = c(2002, 10), end = c(2024, 7)),
@@ -72,15 +71,14 @@ tibble_data <- tibble(
 
 ts_objects <- list(
     cpi_ts = cpi_ts,
-    fx_res_ts = fx_res_ts,
-    fx_res_scl_ts = scl_fx_res,
+    fx_res_ts = scl_fx_res,
     fg_u_ts = fg_down_ts,
     fg_z_ts = fg_up_ts,
     exp_p_ts = ie_p_ts,
     exp_h_ts = ie_h_ts,
     ir_ts = ir_ts,
     unemp_ts = unemp_ts,
-    ipp_ts = ipp_ts
+    ipi_ts = ipi_ts
 )
 
 

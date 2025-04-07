@@ -6,7 +6,7 @@ library(tidyverse)
 # načtení dat
 cpi <- read_csv("data/rawdata/cpi.csv")
 unemp <- read_excel("data/rawdata/unemp.xlsx", sheet = 3, range = "E10:E300")
-ppi <- read_csv("data/rawdata/ppi.csv")
+ipi <- read_csv("data/rawdata/ppi.csv")
 b_sheet <- read_delim("data/rawdata/b_sheet.csv", delim = ";")
 ir <- read_delim("data/rawdata/ir.csv", delim = ";")
 ie_h <- read_excel("data/rawdata/SE_h_m.xlsx")
@@ -18,7 +18,7 @@ gdp <- read_csv("data/rawdata/gdp.csv")
 # převod na ts objekty
 cpi_ts <- ts(cpi[[2]], start = c(1980, 1), end = c(2025, 2), frequency = 12)
 unemp_ts <- ts(unemp[[1]], start = c(2001, 1), end = c(2025, 2), frequency = 12)
-ppi_ts <- ts(ppi[[3]], start = c(1990, 1), end = c(2025, 2), frequency = 12)
+ipi_ts <- ts(ipi[[3]], start = c(1990, 1), end = c(2025, 2), frequency = 12)
 ir_ts <- ts(ir[[5]], start = c(1995, 1), end = c(2025, 2), frequency = 12)
 ie_h_ts <- ts(ie_h[[2]], start = c(2001, 12), end = c(2024, 10), frequency = 12)
 ie_p_ts <- ts(ie_p[[2]], start = c(2010, 01), end = c(2024, 9), frequency = 12)
@@ -27,19 +27,19 @@ gdp_ts <- ts(as.numeric(gdp[[3]][49:length(gdp[[3]])]), start = c(1993, 1), end 
 
 # WEEKLY
 # prevod na stocks (posledni hodnota v mesici)
-securities_monthly <- b_sheet |>
+sec_monthly <- b_sheet |>
     arrange(date) |>
     mutate(month = floor_date(as_date(date), "month")) |>
     group_by(month) |>
     filter(date == max(date))
 
-securities_ts <- ts(securities_monthly[[2]], start = c(1999, 9), end = c(2025, 3), frequency = 12)
+sec_ts <- ts(sec_monthly[[2]], start = c(1999, 9), end = c(2025, 3), frequency = 12)
 
 # Skalovana aktiva
 gdp_month <- gdp_ts |>
     window(start = c(1999, 4), end = c(2024, 4)) |>
     rep(each = 3)
-scl_securities <- window(securities_ts, start = c(1999, 10), end = c(2024, 12)) / gdp_month
+scl_sec <- window(sec_ts, start = c(1999, 10), end = c(2024, 12)) / gdp_month
 
 
 # DAILY
@@ -56,9 +56,8 @@ exp_m_ts <- ts(exp_m_monthl[[2]], start = c(2011, 1), end = c(2023, 4), frequenc
 
 tibble_data <- tibble(
     "date" = format(seq(as.Date("2010-01-01"), as.Date("2024-09-01"), "month"), "%Y-%m"),
-    "securities" =  window(securities_ts, start = c(2010, 1), end = c(2024, 9)),
-    "securities_scl" = window(scl_securities, start = c(2010, 1), end = c(2024, 9)),
-    "ppi" = window(ppi_ts, start = c(2010, 1), end = c(2024, 9)),
+    "sec" = window(scl_sec, start = c(2010, 1), end = c(2024, 9)),
+    "ipi" = window(ipi_ts, start = c(2010, 1), end = c(2024, 9)),
     "ir" = window(ir_ts, start = c(2010, 1), end = c(2024, 9)),
     "cpi" = window(cpi_ts, start = c(2010, 1), end = c(2024, 9)),
     "exp_h" = window(ie_h_ts, start = c(2010, 1), end = c(2024, 9)),
@@ -68,9 +67,9 @@ tibble_data <- tibble(
 
 
 ts_objects <- list(
-    securities_ts = securities_ts,
-    securities_scl_ts = scl_securities,
-    ppi_ts = ppi_ts,
+    sec_ts = sec_ts,
+    sec_ts = scl_sec,
+    ipi_ts = ipi_ts,
     ir_ts = ir_ts,
     cpi_ts = cpi_ts,
     exp_h_ts = ie_h_ts,

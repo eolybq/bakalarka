@@ -7,7 +7,7 @@ library(tidyverse)
 hicp <- read_tsv("data/rawdata/hicp.tsv")
 unemp <- read_csv("data/rawdata/unemp.csv")
 ipi <- read_csv("data/rawdata/ipi.csv")
-securities <- read_csv("data/rawdata/ds_eurosystem.csv")
+sec <- read_csv("data/rawdata/ds_eurosystem.csv")
 b_sheet <- read_csv("data/rawdata/b_eurosystem.csv")
 ir <- read_excel("data/rawdata/ir.xlsx", sheet = 2)
 fg_uncomplete <- read_excel("data/rawdata/fg.xlsx")
@@ -34,12 +34,13 @@ hicp_clean <- hicp |>
     mutate(across(-1, as.character)) |>
     mutate(across(-1, ~na_if(.x, ":"))) |>
     mutate(across(-1, as.numeric)) |>
-    pivot_longer(cols = -1, names_to = "date", values_to = "value")
+    pivot_longer(cols = -1, names_to = "date", values_to = "value") |>
+    drop_na()
     
-hicp_ts <- ts(hicp_clean[["value"]], start = c(1996, 1), end = c(2025, 2), frequency = 12)
+hicp_ts <- ts(hicp_clean[["value"]], start = c(1999, 12), end = c(2025, 2), frequency = 12)
 unemp_ts <- ts(unemp[[3]], start = c(2000, 1), end = c(2025, 1), frequency = 12)
 ipi_ts <- ts(ipi[[3]], start = c(1991, 1), end = c(2025, 1), frequency = 12)
-securities_ts <- ts(securities[[3]], start = c(1997, 9), end = c(2025, 2), frequency = 12)
+sec_ts <- ts(sec[[3]], start = c(1997, 9), end = c(2025, 2), frequency = 12)
 b_sheet_ts <- ts(b_sheet[[3]], start = c(1997, 9), end = c(2025, 2), frequency = 12)
 fg_down_ts <- ts(fg_down[[2]], start = c(1999, 1), end = c(2023, 9), frequency = 12)
 ie_h_ts <- ts(ie_h[[2]], start = c(1997, 1), end = c(2023, 9), frequency = 12)
@@ -77,20 +78,19 @@ exp_m_ts <- ts(bei[[2]], start = c(2015, 7), end = c(2025, 3), frequency = 12)
 gdp_month <- gdp_ts |>
     window(start = c(1997, 4)) |>
     rep(each = 3)
-scl_securities <- window(securities_ts, start = c(1997, 10), end = c(2024, 12)) / gdp_month
+scl_sec <- window(sec_ts, start = c(1997, 10), end = c(2024, 12)) / gdp_month
 scl_b_sheet <- window(b_sheet_ts, start = c(1997, 10), end = c(2024, 12)) / gdp_month
 
 
 
 tibble_data <- tibble(
-    "date" = format(seq(as.Date("1999-1-01"), as.Date("2023-9-01"), "month"), "%Y-%m"),
-    "securities" =  window(securities_ts, start = c(1999, 1), end = c(2023, 9)),
-    "securities_scl" = window(scl_securities, start = c(1999, 1), end = c(2023, 9)),
-    "fg_u" = window(fg_down_ts, start = c(1999, 1), end = c(2023, 9)),
-    "ipi" = window(ipi_ts, start = c(1999, 1), end = c(2023, 9)),
-    "ir" = window(ir_ts, start = c(1999, 1), end = c(2023, 9)),
-    "hicp" = window(hicp_ts, start = c(1999, 1), end = c(2023, 9)),
-    "exp_h" = window(ie_h_ts, start = c(1999, 1), end = c(2023, 9)),
+    "date" = format(seq(as.Date("1999-12-01"), as.Date("2023-09-01"), "month"), "%Y-%m"),
+    "sec" = window(scl_sec, start = c(1999, 12), end = c(2023, 9)),
+    "fg_u" = window(fg_down_ts, start = c(1999, 12), end = c(2023, 9)),
+    "ipi" = window(ipi_ts, start = c(1999, 12), end = c(2023, 9)),
+    "ir" = window(ir_ts, start = c(1999, 12), end = c(2023, 9)),
+    "hicp" = window(hicp_ts, start = c(1999, 12), end = c(2023, 9)),
+    "exp_h" = window(ie_h_ts, start = c(1999, 12), end = c(2023, 9)),
 )
     
 
@@ -98,8 +98,7 @@ tibble_data <- tibble(
 ts_objects <- list(
     assets_ts = b_sheet_ts,
     assets_scl_ts = scl_b_sheet,
-    securities_ts = securities_ts,
-    securities_scl_ts = scl_securities,
+    sec_ts = scl_sec,
     fg_u_ts = fg_down_ts,
     ipi_ts = ipi_ts,
     ir_ts = ir_ts,
