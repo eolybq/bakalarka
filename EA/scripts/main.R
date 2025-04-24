@@ -270,15 +270,15 @@ exogen_irf_h <- function(fg_type, fg_sd, var_count, max_var_lag) {
                     all_coef_h[[k]][, 1][2] * irf_exog_fg[t - 1, 2] +
                     all_coef_h[[k]][, 1][3] * irf_exog_fg[t - 1, 3] +
                     all_coef_h[[k]][, 1][4] * irf_exog_fg[t - 1, 4] +
-                    all_coef_h[[k]][, 1][5] * irf_exog_fg[t - 1, 5]
+                    all_coef_h[[k]][, 1][5] * irf_exog_fg[t - 1, 5] +
                 
-                all_coef_h[[k]][, 1][6] * irf_exog_fg[t - 2, 2] +
+                all_coef_h[[k]][, 1][6] * irf_exog_fg[t - 2, 1] +
                     all_coef_h[[k]][, 1][7] * irf_exog_fg[t - 2, 2] +
                     all_coef_h[[k]][, 1][8] * irf_exog_fg[t - 2, 3] +
                     all_coef_h[[k]][, 1][9] * irf_exog_fg[t - 2, 4] +
-                    all_coef_h[[k]][, 1][10] * irf_exog_fg[t - 2, 5]
+                    all_coef_h[[k]][, 1][10] * irf_exog_fg[t - 2, 5] +
                 
-                all_coef_h[[k]][, 1][11] * irf_exog_fg[t - 3, 2] +
+                all_coef_h[[k]][, 1][11] * irf_exog_fg[t - 3, 1] +
                     all_coef_h[[k]][, 1][12] * irf_exog_fg[t - 3, 2] +
                     all_coef_h[[k]][, 1][13] * irf_exog_fg[t - 3, 3] +
                     all_coef_h[[k]][, 1][14] * irf_exog_fg[t - 3, 4] +
@@ -314,10 +314,12 @@ fg_u_exp_h_irf_results <- exogen_irf_h(fg_u_coef_h, fg_sd = hac_sd_fg_u_h, var_c
 impulse_fg_u_h <- ggplot(fg_u_exp_h_irf_results[max_var_lag_h:nrow(fg_u_exp_h_irf_results), ], aes(x = time - max_var_lag_h, y = exp_h)) +
     geom_line(color = "black", linewidth = 1.2) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
+    scale_y_continuous(labels = scales::label_number(sci = FALSE)) +
     theme_minimal() +
     labs(
         x = "Časový horizont",
-        y = "EXP_H"
+        y = NULL
     )
 
 
@@ -344,10 +346,11 @@ irf_df_h <- data.frame(
 impulse_aktiva_h <- ggplot(irf_df_h, aes(x = horizon, y = response)) +
     geom_line(color = "black", linewidth = 1.2) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
     theme_minimal() +
     labs(
         x = "Časový horizont",
-        y = "EXP_H"
+        y = NULL
     )
 
 
@@ -535,10 +538,11 @@ fg_u_exp_m_irf_results <- exogen_irf_m(fg_u_coef_m, fg_sd = hac_sd_fg_u_m, var_c
 impulse_fg_u_m <- ggplot(fg_u_exp_m_irf_results[max_var_lag_m:nrow(fg_u_exp_m_irf_results), ], aes(x = time - max_var_lag_m, y = exp_m)) +
     geom_line(color = "black", linewidth = 1.2) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
     theme_minimal() +
     labs(
         x = "Časový horizont",
-        y = "EXP_M"
+        y = NULL
     )
 
 
@@ -565,10 +569,11 @@ irf_df_m <- data.frame(
 impulse_aktiva_m <- ggplot(irf_df_m, aes(x = horizon, y = response)) +
     geom_line(color = "black", linewidth = 1.2) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
     theme_minimal() +
     labs(
         x = "Časový horizont",
-        y = "EXP_M"
+        y = NULL
     )
 
 
@@ -589,8 +594,8 @@ plot(v_decomp_m)
 col1_label <- textGrob("Domácnosti", gp = gpar(fontsize = 14, fontface = "bold"))
 col2_label <- textGrob("Trh", gp = gpar(fontsize = 14, fontface = "bold"))
 
-row1_label <- textGrob("SEC", rot = 90, gp = gpar(fontsize = 14, fontface = "bold"))
-row2_label <- textGrob("FG_U", rot = 90, gp = gpar(fontsize = 14, fontface = "bold"))
+row1_label <- textGrob("Cenné papíry", rot = 90, gp = gpar(fontsize = 14, fontface = "bold"))
+row2_label <- textGrob("FG - uvolnění", rot = 90, gp = gpar(fontsize = 14, fontface = "bold"))
 
 grid.arrange(
     # Horní řádek s popisky sloupců – první buňka prázdná

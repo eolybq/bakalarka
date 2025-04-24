@@ -219,10 +219,11 @@ irf_df_h <- data.frame(
 impulse_aktiva_h <- ggplot(irf_df_h, aes(x = horizon, y = response)) +
     geom_line(color = "black", linewidth = 1.2) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
     theme_minimal() +
     labs(
         x = "Časový horizont",
-        y = "EXP_H"
+        y = NULL
     )
 
 
@@ -320,10 +321,11 @@ irf_df_p <- data.frame(
 impulse_aktiva_p <- ggplot(irf_df_p, aes(x = horizon, y = response)) +
     geom_line(color = "black", linewidth = 1.2) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
     theme_minimal() +
     labs(
         x = "Časový horizont",
-        y = "EXP_P"
+        y = NULL
     )
 
 
@@ -430,10 +432,11 @@ irf_df_m <- data.frame(
 impulse_aktiva_m <- ggplot(irf_df_m, aes(x = horizon, y = response)) +
     geom_line(color = "black", linewidth = 1.2) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
     theme_minimal() +
     labs(
         x = "Časový horizont",
-        y = "EXP_M"
+        y = NULL
     )
 
 
@@ -455,7 +458,7 @@ col1_label <- textGrob("Domácnosti", gp = gpar(fontsize = 14, fontface = "bold"
 col2_label <- textGrob("Profesionálové", gp = gpar(fontsize = 14, fontface = "bold"))
 col3_label <- textGrob("Trh", gp = gpar(fontsize = 14, fontface = "bold"))
 
-row1_label <- textGrob("SEC", rot = 90, gp = gpar(fontsize = 14, fontface = "bold"))
+row1_label <- textGrob("Cenné papíry", rot = 90, gp = gpar(fontsize = 14, fontface = "bold"))
 
 grid.arrange(
     # Horní řádek s popisky sloupců – první buňka prázdná

@@ -41,15 +41,16 @@ for (ts_name in names(ts_objects)) {
 
 
 # GRAF VLIV FG a AKTIVA na OCE ==========
-tibble_data_vliv <- tibble_data |>
-    dplyr::select(
-        -c(cpi, ipi, exp_h, exp_p, fx_res)
-    )
+plot_data <- tibble(
+    date = seq(as.Date("2002-09-01"), as.Date("2024-09-01"), "month"),
+    fx_res_abs = ts_objects$fx_res_abs,
+    ir = window(ts_objects$ir_ts, start = c(2002, 9), end = c(2024, 9))
+)
 
-tibble_data_vliv$fx_res_abs <- tibble_data_vliv$fx_res_abs / 1000000
+plot_data$fx_res_abs <- plot_data$fx_res_abs / 1000000
 
 # Převod do dlouhého formátu vhodného pro ggplot2
-tibble_data_long1 <- tibble_data_vliv |>
+tibble_data_long1 <- plot_data |>
     pivot_longer(cols = -date, names_to = "serie", values_to = "hodnota")
 
 # Odstraníme FG řady pro čárový graf
@@ -58,6 +59,7 @@ data_lines <- tibble_data_long1 |>
 
 # Vypočteme intervaly pro FG_uvolneni
 fg_u_intervals <- tibble_data |>
+    mutate(date = as.Date(paste0(date, "-01"))) |>
     filter(fg_u == 1) |>
     arrange(date) |>
     mutate(
@@ -71,6 +73,7 @@ fg_u_intervals <- tibble_data |>
 
 # Vypočteme intervaly pro FG_zprisneni
 fg_z_intervals <- tibble_data |>
+    mutate(date = as.Date(paste0(date, "-01"))) |>
     filter(fg_z == 1) |>
     arrange(date) |>
     mutate(
@@ -83,34 +86,50 @@ fg_z_intervals <- tibble_data |>
     ungroup()
 
 ggplot() +
-    geom_rect(
-        data = fg_u_intervals, aes(xmin = start, xmax = end, ymin = -Inf, ymax = Inf),
-        fill = "green", alpha = 0.3
-    ) +
-    geom_rect(
-        data = fg_z_intervals, aes(xmin = start, xmax = end, ymin = -Inf, ymax = Inf),
-        fill = "red", alpha = 0.2
-    ) +
     geom_line(data = data_lines, aes(x = date, y = hodnota, color = serie)) +
+    geom_rect(
+        data = fg_u_intervals, aes(xmin = start, xmax = end, ymin = -Inf, ymax = Inf, fill = "uvolnění"),
+        alpha = 0.3
+    ) +
+    geom_rect(
+        data = fg_z_intervals, aes(xmin = start, xmax = end, ymin = -Inf, ymax = Inf, fill = "zpřísnění"),
+        alpha = 0.2
+    ) +
 
-    # Přejmenování názvů proměnných v legendě (přizpůsob si podle aktuálních názvů)
-    scale_color_discrete(labels = c(
-        "fx_res_abs" = "Devizové rezervy",
-        "ir" = "Úrokové sazby"
-    )) +
-
-    # Nastavení osy x tak, aby se zobrazovala data každý měsíc
+    scale_color_manual(
+        labels = c(
+        "ir" = "Repo sazba",
+        "fx_res_abs" = "Devizové rezervy"
+        ),
+        breaks = c("ir", "fx_res_abs"),
+        values = c(
+            "ir" = "steelblue",      
+            "fx_res_abs" = "darkorange"
+        ),
+    ) +
+    
+    scale_fill_manual(
+        name = "Forward guidance",
+        values = c("uvolnění" = "green", "zpřísnění" = "red"),
+        labels = c("Uvolnění", "Zpřísnění")
+    ) +
+    
     scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
     scale_y_continuous(
         name = "Procento", 
         sec.axis = sec_axis(
-            name = "Mil. Kč",  # Pravá osa pro druhou proměnnou
-            trans = ~ . * 1000000
+            name = "Bil. Kč", 
+            trans = ~ . 
         )
     ) +
     labs(
         x = "Rok", y = "Procento", color = "Řada"
     ) +
+    guides(
+        color = guide_legend(order = 1),
+        fill = guide_legend(order = 2)
+    ) +
     theme_minimal() +
     theme(legend.position = "bottom")
+
 

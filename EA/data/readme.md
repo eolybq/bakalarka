@@ -2,6 +2,8 @@ hicp - fixed composition EA20 - bazický index - sezonne neocisteno - https://ec
 
 gdp - fixed composition EA20 - miliony eur - sezonne ocisteno - běžné ceny (nominalni) -!QUARTERLY - https://data.ecb.europa.eu/data/datasets/MNA/MNA.Q.Y.I9.W2.S1.S1.B.B1GQ._Z._Z._Z.EUR.V.N
 
+gdp_alternative - fixed composition EA20 - miliony eur - sezonne neocisteno - bezne ceny - !YEARLY - https://data.ecb.europa.eu/data/datasets/MNA/MNA.A.N.I9.W2.S1.S1.B.B1GQ._Z._Z._Z.EUR.V.N
+
 ipi - fixed composition EA20 - bazický index - sezonne ocisteno - https://data.ecb.europa.eu/data/datasets/STS/STS.M.I9.Y.PROD.NS0020.4.000
 
 ir - procento - !DAILY - Minimum bid rate/fixed rate - https://data.ecb.europa.eu/data/datasets/FM/FM.D.U2.EUR.4F.KR.MRR_RT.LEV

@@ -157,7 +157,7 @@ var_model_h <- trans_tdata_h |>
         -fg_z,
     ) |>
     vars::VAR(
-        p = 4,
+        p = 2,
         type = "const",
         exogen = tibble(
             fg_u = trans_tdata_h$fg_u,
@@ -167,7 +167,7 @@ var_model_h <- trans_tdata_h |>
 
 
 var_count_h <- 5
-max_var_lag_h <- 4
+max_var_lag_h <- 2
 
 
 # NOTE: restrikce: FG se objevuje pouze v rovnici pro exp
@@ -261,25 +261,13 @@ exogen_irf_h <- function(fg_type, fg_sd, var_count, max_var_lag) {
                     all_coef_h[[k]][, 1][2] * irf_exog_fg[t - 1, 2] +
                     all_coef_h[[k]][, 1][3] * irf_exog_fg[t - 1, 3] +
                     all_coef_h[[k]][, 1][4] * irf_exog_fg[t - 1, 4] +
-                    all_coef_h[[k]][, 1][5] * irf_exog_fg[t - 1, 5]
+                    all_coef_h[[k]][, 1][5] * irf_exog_fg[t - 1, 5] +
 
-                all_coef_h[[k]][, 1][6] * irf_exog_fg[t - 2, 2] +
+                all_coef_h[[k]][, 1][6] * irf_exog_fg[t - 2, 1] +
                     all_coef_h[[k]][, 1][7] * irf_exog_fg[t - 2, 2] +
                     all_coef_h[[k]][, 1][8] * irf_exog_fg[t - 2, 3] +
                     all_coef_h[[k]][, 1][9] * irf_exog_fg[t - 2, 4] +
                     all_coef_h[[k]][, 1][10] * irf_exog_fg[t - 2, 5]
-
-                all_coef_h[[k]][, 1][11] * irf_exog_fg[t - 3, 2] +
-                    all_coef_h[[k]][, 1][12] * irf_exog_fg[t - 3, 2] +
-                    all_coef_h[[k]][, 1][13] * irf_exog_fg[t - 3, 3] +
-                    all_coef_h[[k]][, 1][14] * irf_exog_fg[t - 3, 4] +
-                    all_coef_h[[k]][, 1][15] * irf_exog_fg[t - 3, 5]
-
-                all_coef_h[[k]][, 1][16] * irf_exog_fg[t - 4, 2] +
-                    all_coef_h[[k]][, 1][17] * irf_exog_fg[t - 4, 2] +
-                    all_coef_h[[k]][, 1][18] * irf_exog_fg[t - 4, 3] +
-                    all_coef_h[[k]][, 1][19] * irf_exog_fg[t - 4, 4] +
-                    all_coef_h[[k]][, 1][20] * irf_exog_fg[t - 4, 5]
             }
         }
 
@@ -313,19 +301,21 @@ fg_z_exp_h_irf_results <- exogen_irf_h(fg_z_coef_h, fg_sd = hac_sd_fg_z_h, var_c
 impulse_fg_u_h <- ggplot(fg_u_exp_h_irf_results[max_var_lag_h:nrow(fg_u_exp_h_irf_results), ], aes(x = time - max_var_lag_h, y = exp_h)) +
     geom_line(color = "black", linewidth = 1.2) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
     theme_minimal() +
     labs(
         x = "Časový horizont",
-        y = "EXP_H"
+        y = NULL
     )
 
 impulse_fg_z_h <- ggplot(fg_z_exp_h_irf_results[max_var_lag_h:nrow(fg_z_exp_h_irf_results), ], aes(x = time - max_var_lag_h, y = exp_h)) +
     geom_line(color = "black", linewidth = 1.2) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
     theme_minimal() +
     labs(
         x = "Časový horizont",
-        y = "EXP_H"
+        y = NULL
     )
 
 
@@ -351,10 +341,11 @@ irf_df_h <- data.frame(
 impulse_aktiva_h <- ggplot(irf_df_h, aes(x = horizon, y = response)) +
     geom_line(color = "black", linewidth = 1.2) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
     theme_minimal() +
     labs(
         x = "Časový horizont",
-        y = "EXP_H"
+        y = NULL
     )
 
 
@@ -510,9 +501,9 @@ exogen_irf_p <- function(fg_type, fg_sd, var_count, max_var_lag) {
                     all_coef_p[[k]][, 1][2] * irf_exog_fg[t - 1, 2] +
                     all_coef_p[[k]][, 1][3] * irf_exog_fg[t - 1, 3] +
                     all_coef_p[[k]][, 1][4] * irf_exog_fg[t - 1, 4] +
-                    all_coef_p[[k]][, 1][5] * irf_exog_fg[t - 1, 5]
+                    all_coef_p[[k]][, 1][5] * irf_exog_fg[t - 1, 5] +
                 
-                all_coef_p[[k]][, 1][6] * irf_exog_fg[t - 2, 2] +
+                all_coef_p[[k]][, 1][6] * irf_exog_fg[t - 2, 1] +
                     all_coef_p[[k]][, 1][7] * irf_exog_fg[t - 2, 2] +
                     all_coef_p[[k]][, 1][8] * irf_exog_fg[t - 2, 3] +
                     all_coef_p[[k]][, 1][9] * irf_exog_fg[t - 2, 4] +
@@ -551,19 +542,21 @@ fg_z_exp_p_irf_results <- exogen_irf_p(fg_z_coef_p, fg_sd = hac_sd_fg_z_p, var_c
 impulse_fg_u_p <- ggplot(fg_u_exp_p_irf_results[max_var_lag_p:nrow(fg_u_exp_p_irf_results), ], aes(x = time - max_var_lag_p, y = exp_p)) +
     geom_line(color = "black", linewidth = 1.2) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
     theme_minimal() +
     labs(
         x = "Časový horizont",
-        y = "EXP_P"
+        y = NULL
     )
 
 impulse_fg_z_p <- ggplot(fg_z_exp_p_irf_results[max_var_lag_p:nrow(fg_u_exp_p_irf_results), ], aes(x = time - max_var_lag_p, y = exp_p)) +
     geom_line(color = "black", linewidth = 1.2) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
     theme_minimal() +
     labs(
         x = "Časový horizont",
-        y = "EXP_P"
+        y = NULL
     )
 
 
@@ -590,10 +583,11 @@ irf_df_p <- data.frame(
 impulse_aktiva_p <- ggplot(irf_df_p, aes(x = horizon, y = response)) +
     geom_line(color = "black", linewidth = 1.2) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.2) +
+    geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
     theme_minimal() +
     labs(
         x = "Časový horizont",
-        y = "EXP_P"
+        y = NULL
     )
 
 
@@ -617,9 +611,9 @@ plot(v_decomp_p)
 col1_label <- textGrob("Domácnosti", gp = gpar(fontsize = 14, fontface = "bold"))
 col2_label <- textGrob("Profesionálové", gp = gpar(fontsize = 14, fontface = "bold"))
 
-row1_label <- textGrob("FX_RES", rot = 90, gp = gpar(fontsize = 14, fontface = "bold"))
-row2_label <- textGrob("FG_U", rot = 90, gp = gpar(fontsize = 14, fontface = "bold"))
-row3_label <- textGrob("FG_Z", rot = 90, gp = gpar(fontsize = 14, fontface = "bold"))
+row1_label <- textGrob("Devizové rezervy", rot = 90, gp = gpar(fontsize = 14, fontface = "bold"))
+row2_label <- textGrob("FG - uvolnění", rot = 90, gp = gpar(fontsize = 14, fontface = "bold"))
+row3_label <- textGrob("FG - zpřísnění", rot = 90, gp = gpar(fontsize = 14, fontface = "bold"))
 
 grid.arrange(
     # Horní řádek s popisky sloupců – první buňka prázdná

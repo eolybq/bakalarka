@@ -5,7 +5,7 @@ library(tidyverse)
 
 # načtení dat
 cpi <- read_csv("data/rawdata/cpi.csv")
-unemp <- read_excel("data/rawdata/unemp.xlsx", sheet = 3, range = "E10:E300")
+# unemp <- read_excel("data/rawdata/unemp.xlsx", sheet = 3, range = "E10:E300")
 ipi <- read_csv("data/rawdata/ppi.csv")
 b_sheet <- read_delim("data/rawdata/b_sheet.csv", delim = ";")
 ir <- read_delim("data/rawdata/ir.csv", delim = ";")
@@ -17,7 +17,7 @@ gdp <- read_csv("data/rawdata/gdp.csv")
 
 # převod na ts objekty
 cpi_ts <- ts(cpi[[2]], start = c(1980, 1), end = c(2025, 2), frequency = 12)
-unemp_ts <- ts(unemp[[1]], start = c(2001, 1), end = c(2025, 2), frequency = 12)
+# unemp_ts <- ts(unemp[[1]], start = c(2001, 1), end = c(2025, 2), frequency = 12)
 ipi_ts <- ts(ipi[[3]], start = c(1990, 1), end = c(2025, 2), frequency = 12)
 ir_ts <- ts(ir[[5]], start = c(1995, 1), end = c(2025, 2), frequency = 12)
 ie_h_ts <- ts(ie_h[[2]], start = c(2001, 12), end = c(2024, 10), frequency = 12)
@@ -39,7 +39,7 @@ sec_ts <- ts(sec_monthly[[2]], start = c(1999, 9), end = c(2025, 3), frequency =
 gdp_month <- gdp_ts |>
     window(start = c(1999, 4), end = c(2024, 4)) |>
     rep(each = 3)
-scl_sec <- window(sec_ts, start = c(1999, 10), end = c(2024, 12)) / gdp_month
+scl_sec <- window(sec_ts, start = c(1999, 10), end = c(2024, 12)) / (gdp_month * 4)
 
 
 # DAILY
@@ -67,15 +67,15 @@ tibble_data <- tibble(
 
 
 ts_objects <- list(
-    sec_ts = sec_ts,
     sec_ts = scl_sec,
+    sec_abs = sec_ts,
     ipi_ts = ipi_ts,
     ir_ts = ir_ts,
     cpi_ts = cpi_ts,
     exp_h_ts = ie_h_ts,
     exp_p_ts = ie_p_ts,
     exp_m_ts = exp_m_ts,
-    unemp_ts = unemp_ts
+    # unemp_ts = unemp_ts
 )
 
 
@@ -93,3 +93,4 @@ save(
     exp_m_ts,
     file = "data/exp_m_data.RData"
 )
+
