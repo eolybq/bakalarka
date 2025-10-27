@@ -1,6 +1,6 @@
 # The impact of unconventional monetary policy on inflation expectations - Bachelor thesis
 
-This is my Bachelor thesis which aims to analyse unconventional monetary tools impact on infaltion expectations in CZ, euroarea, SWE. Analysis contains thesis level report and some unusual-manually created data of central bank public reports. This data are then modeled as aexogenous dummy variables in VAR model.
+This is my Bachelor thesis project which aims to analyse unconventional monetary tools impact on infaltion expectations in CZ, euroarea, SWE. Analysis contains thesis level report and some unusual-manually created data of central bank public reports. This data are then modeled as aexogenous dummy variables in VAR model.
 
 **Thesis text (analysis report) is available either at:**
 https://is.muni.cz/th/dzkyy/?fakulta=1421;obdobi=181;lang=cs;id=300358
