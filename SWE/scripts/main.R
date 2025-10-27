@@ -204,7 +204,6 @@ akt_exp_h_irf <- irf(
     impulse = "sec",
     response = "exp_h",
     n.ahead = 20,
-    ortho = FALSE,
     runs = 1000
 )
 
@@ -306,7 +305,6 @@ akt_exp_p_irf <- irf(
     impulse = "sec",
     response = "exp_p",
     n.ahead = 20,
-    ortho = FALSE,
     runs = 1000
 )
 
@@ -418,7 +416,6 @@ akt_exp_m_irf <- irf(
     impulse = "sec",
     response = "exp_m",
     n.ahead = 20,
-    ortho = FALSE,
     runs = 1000
 )
 horizons_m <- 0:(nrow(akt_exp_m_irf$irf$sec) - 1)

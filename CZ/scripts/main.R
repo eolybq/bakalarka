@@ -326,7 +326,6 @@ akt_exp_h_irf <- irf(
     impulse = "fx_res",
     response = "exp_h",
     n.ahead = 20,
-    ortho = FALSE,
     runs = 1000
 )
 
@@ -568,7 +567,6 @@ akt_exp_p_irf <- irf(
     impulse = "fx_res",
     response = "exp_p",
     n.ahead = 20,
-    ortho = FALSE,
     runs = 1000
 )
 
