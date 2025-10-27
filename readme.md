@@ -4,12 +4,8 @@ This is my Bachelor’s Thesis project which aims to analyse unconventional mone
 Analysis also creates custom market derived inflation expectation data from Nominal and Inflation indexed Bond yield.
 Project code also includes Impulse response function written from scratch for exogenous "shock" (shock in exogenous variable) in VAR model as R currently doesn't provide this functionality.
 
-**Thesis text (analysis report) is available (in Czech) either at:**
+**Thesis text (analysis report) is available (in Czech) at:**
 https://is.muni.cz/th/dzkyy/?fakulta=1421;obdobi=181;lang=cs;id=300358
-
-or
-
-https://theses.cz/id/rvjq5v/
 
 **There is also local version in this repo: [As PDF](/Vliv_nekonvencni_monetarni_politiky_na_inflacni_ocekavani.pdf) [As DOCX](/Vliv_nekonvencni_monetarni_politiky_na_inflacni_ocekavani.docx)**
 
@@ -31,6 +27,7 @@ This project aims to examine how unconventional monetary policy has influenced i
 
 **Market derived inflation expectations for euroarea and Sweden:**
 ![Inflation exp m plot](figs/swe_ea_exp_m.png)
+
 
 ### Impulse response functions of available Inflation expectations for each area
 - (key outcome of analysis)
